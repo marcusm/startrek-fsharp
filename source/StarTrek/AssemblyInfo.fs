@@ -10,9 +10,9 @@ associated with an assembly. *)
 [<assembly: AssemblyTitle("StarTrek")>]
 [<assembly: AssemblyDescription("")>]
 [<assembly: AssemblyConfiguration("")>]
-[<assembly: AssemblyCompany("Microsoft")>]
+[<assembly: AssemblyCompany("None")>]
 [<assembly: AssemblyProduct("StarTrek")>]
-[<assembly: AssemblyCopyright("Copyright © Microsoft 2015")>]
+[<assembly: AssemblyCopyright("None")>]
 [<assembly: AssemblyTrademark("")>]
 [<assembly: AssemblyCulture("")>]
 

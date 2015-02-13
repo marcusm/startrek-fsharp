@@ -20,3 +20,8 @@ obj
 *.vserr
 *.userprefs
 packages
+.nuget
+[Bb]uild
+[Tt]est
+[Dd]eploy
+source/StarTrek/bin/

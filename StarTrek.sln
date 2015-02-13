@@ -3,7 +3,12 @@ Microsoft Visual Studio Solution File, Format Version 12.00
 # Visual Studio 2013
 VisualStudioVersion = 12.0.31101.0
 MinimumVisualStudioVersion = 10.0.40219.1
-Project("{F2A71F9B-5D33-465A-A702-920D77279786}") = "StarTrek", "StarTrek\StarTrek.fsproj", "{603AF315-BDED-4C10-B6C7-564FBE09C49E}"
+Project("{F2A71F9B-5D33-465A-A702-920D77279786}") = "StarTrek", "source\StarTrek\StarTrek.fsproj", "{603AF315-BDED-4C10-B6C7-564FBE09C49E}"
+EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = ".nuget", ".nuget", "{DC24FFE9-127B-4B24-BB62-B94D7E163567}"
+	ProjectSection(SolutionItems) = preProject
+		.nuget\packages.config = .nuget\packages.config
+	EndProjectSection
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
