@@ -12,7 +12,7 @@ open Fake.ReleaseNotesHelper
 open Fake.TaskRunnerHelper
 open Fake.Git
 
-RestorePackages()
+(* RestorePackages() *)
 
 // --------------------------------------------------------------------------------------
 // Build script standard paths and settings
