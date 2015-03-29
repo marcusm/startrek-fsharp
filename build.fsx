@@ -63,8 +63,8 @@ Target "Default" DoNothing
 
 "Clean"
     ==> "BuildApp"
-    (* ==> "BuildTest" *)
-    (* ==> "Test" *)
+    ==> "BuildTest"
+    ==> "Test"
     ==> "Default"
 
 // start build

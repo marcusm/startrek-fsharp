@@ -39,4 +39,4 @@ module Enterprise =
             match condition enterprise with
             | ShipCondition.Destroyed -> enterprise
             | ShipCondition.DeadInSpace -> enterprise
-            | ShipCondition.Operational -> { enterprise with damage=updateDamageControl enterprise}
+            | ShipCondition.Operational -> { enterprise with damage=(updateDamageControl enterprise)}

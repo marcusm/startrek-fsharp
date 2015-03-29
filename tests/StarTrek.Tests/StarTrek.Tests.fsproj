@@ -50,6 +50,7 @@
   <ItemGroup>
     <Compile Include="AssemblyInfo.fs" />
     <Compile Include="TestEnterprise.fs"/>
+    <Compile Include="TestWorld.fs"/>
     <Compile Include="TestCombat.fs"/>
     <Compile Include="Program.fs" />
   </ItemGroup>
