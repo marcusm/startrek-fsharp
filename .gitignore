@@ -25,3 +25,6 @@ packages
 [Tt]est
 [Dd]eploy
 source/StarTrek/bin/
+
+.fake
+.ionide
