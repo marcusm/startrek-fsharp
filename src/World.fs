@@ -3,6 +3,7 @@
 module World =
     open System
     open GameTypes
+    open Utils
 
     let assignQuadrantKlingon chance =
         match chance with
@@ -15,13 +16,6 @@ module World =
         match chance with
         | (c) when c > 0.96 -> 1
         | _ -> 0
-
-    let rec getRandomCoord (random:System.Random) (exclude:QuadrantClutter) =
-        let p = {x=random.Next(1,dim+1);y=random.Next(1,dim+1)};
-        if Map.containsKey p exclude then
-            getRandomCoord random exclude
-        else
-            p
 
     let clutterMap (random:Random) (e:Point) (klingons:int) (bases:int) (stars:int) =
         let rec addCluter currentMap i count v =
