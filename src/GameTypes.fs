@@ -14,12 +14,14 @@ module GameTypes =
 
     type Stardate = {current:int;start:int;turns:int;}
 
+    type QuadrantClutter = Map<Point,int>
+
     type ShipCondition =
         | Operational
         | DeadInSpace
         | Destroyed
 
-    type Klingon =
+    type Klingon = 
         {sector:Point; energy: float;}
 
         member this.ShipCondition =
