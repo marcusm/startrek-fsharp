@@ -33,7 +33,7 @@ module World =
         addCluter clutter 0 stars starId
 
     let quadrantTemplate (clutter: QuadrantClutter) (x: int) (y: int) =
-        let p = { x = x; y = y }
+        let p = { X = x; Y = y }
 
         match (Map.containsKey p clutter) with
         | true -> clutter.[p]
@@ -46,7 +46,7 @@ module World =
         let klingons =
             assignQuadrantKlingon (random.NextDouble())
 
-        { Quadrant = { x = x; y = y }
+        { Quadrant = { X = x; Y = y }
           Klingons = klingons
           Bases = bases
           Stars = 5 }
@@ -66,11 +66,11 @@ module World =
 
     let createEnterprise (random: IRandomService) =
         { Sector =
-              { x = random.Next(1, dim + 1)
-                y = random.Next(1, dim + 1) }
+              { X = random.Next(1, dim + 1)
+                Y = random.Next(1, dim + 1) }
           Quadrant =
-              { x = random.Next(1, dim + 1)
-                y = random.Next(1, dim + 1) }
+              { X = random.Next(1, dim + 1)
+                Y = random.Next(1, dim + 1) }
           Energy = 3000.0
           Shields = 0.0
           Torpedoes = 10
@@ -84,7 +84,7 @@ module World =
         let transform (c: Point * int) =
             let p, v = c
 
-            { Sector = { x = p.x; y = p.y }
+            { Sector = { X = p.X; Y = p.Y }
               Energy = 200.0 }
 
         let klingons =
@@ -97,7 +97,7 @@ module World =
 
     let enterQuadrant (random: IRandomService) (state: GameState) (e: Enterprise) =
         let quadrant =
-            Array2D.get state.Quadrants e.Quadrant.x e.Quadrant.y
+            Array2D.get state.Quadrants e.Quadrant.X e.Quadrant.Y
 
         let clutter =
             clutterMap random e.Sector quadrant.Klingons quadrant.Bases quadrant.Stars

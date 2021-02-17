@@ -7,8 +7,8 @@ module Utils =
 
     let rec getRandomCoord (random: IRandomService) (exclude: QuadrantClutter) =
         let p =
-            { x = random.Next(1, dim + 1)
-              y = random.Next(1, dim + 1) }
+            { X = random.Next(1, dim + 1)
+              Y = random.Next(1, dim + 1) }
 
         if Map.containsKey p exclude then
             getRandomCoord random exclude

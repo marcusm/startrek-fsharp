@@ -14,7 +14,7 @@ module GameTypes =
         abstract member Next: int*int->int
         abstract member NextDouble: unit->double
 
-    type Point = { x: int; y: int }
+    type Point = { X: int; Y: int }
 
     type Quadrant =
         { Quadrant: Point
