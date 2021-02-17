@@ -17,54 +17,75 @@ module World =
         | (c) when c > 0.96 -> 1
         | _ -> 0
 
-    let clutterMap (random:Random) (e:Point) (klingons:int) (bases:int) (stars:int) =
+    let clutterMap (random: IRandomService) (e: Point) (klingons: int) (bases: int) (stars: int) =
         let rec addCluter currentMap i count v =
-            if i >= count then currentMap
+            if i >= count then
+                currentMap
             else
-                let newMap = Map.add (getRandomCoord random currentMap) v currentMap
-                addCluter newMap (i+1) v count
-    
+                let newMap =
+                    Map.add (getRandomCoord random currentMap) v currentMap
+
+                addCluter newMap (i + 1) v count
+
         let clutter = Map.add e enterpriseId Map.empty
         let clutter = addCluter clutter 0 klingons klingonId
         let clutter = addCluter clutter 0 bases baseId
         addCluter clutter 0 stars starId
 
-    let quadrantTemplate (clutter:QuadrantClutter) (x:int) (y:int) =
-        let p = {x=x;y=y}
+    let quadrantTemplate (clutter: QuadrantClutter) (x: int) (y: int) =
+        let p = { x = x; y = y }
+
         match (Map.containsKey p clutter) with
         | true -> clutter.[p]
         | _ -> 0
 
-    let createQuadrant (random: System.Random) x y =
-        let bases = assignQuadrantBases (random.NextDouble())
-        let klingons = assignQuadrantKlingon (random.NextDouble())
-        {quadrant={x=x;y=y};klingons=klingons;bases=bases;stars=5;}
+    let createQuadrant (random: IRandomService) x y =
+        let bases =
+            assignQuadrantBases (random.NextDouble())
 
-    let placeQuadrant (random:System.Random) (clutter:QuadrantClutter) sector =
+        let klingons =
+            assignQuadrantKlingon (random.NextDouble())
+
+        { Quadrant = { x = x; y = y }
+          Klingons = klingons
+          Bases = bases
+          Stars = 5 }
+
+    let placeQuadrant (random: IRandomService) (clutter: QuadrantClutter) sector =
         let quadrantGen = quadrantTemplate clutter
         let current = Array2D.initBased 1 1 8 8 quadrantGen
 
-        current 
+        current
 
     let resetEnterprise enterprise =
-        { enterprise with torpedoes = 10; energy = 3000.0; shields = 0.0; damage = []; }
+        { enterprise with
+              Torpedoes = 10
+              Energy = 3000.0
+              Shields = 0.0
+              Damage = [] }
 
-    let createEnterprise (random:System.Random) =
-        {sector = {x=random.Next(1,dim+1);y=random.Next(1,dim+1)};
-         quadrant = {x=random.Next(1,dim+1);y=random.Next(1,dim+1)};
-         energy = 3000.0;
-         shields = 0.0;
-         torpedoes = 10
-         damage = []}
+    let createEnterprise (random: IRandomService) =
+        { Sector =
+              { x = random.Next(1, dim + 1)
+                y = random.Next(1, dim + 1) }
+          Quadrant =
+              { x = random.Next(1, dim + 1)
+                y = random.Next(1, dim + 1) }
+          Energy = 3000.0
+          Shields = 0.0
+          Torpedoes = 10
+          Damage = [] }
 
-    let setQuadrantKlingons (clutter:QuadrantClutter) =
-        let filter (c:Point*int) =
-            let p,v = c
+    let setQuadrantKlingons (clutter: QuadrantClutter) =
+        let filter (c: Point * int) =
+            let p, v = c
             v = klingonId
 
-        let transform (c:Point*int) =
-            let p,v = c
-            { sector = { x=p.x;y=p.y;}; energy=200.0 }
+        let transform (c: Point * int) =
+            let p, v = c
+
+            { Sector = { x = p.x; y = p.y }
+              Energy = 200.0 }
 
         let klingons =
             Map.toSeq clutter
@@ -74,21 +95,38 @@ module World =
 
         klingons
 
-    let enterQuadrant (random:Random) (state:GameState) (e:Enterprise) =
-        let quadrant = Array2D.get state.quadrants e.quadrant.x e.quadrant.y
-        let clutter = clutterMap random e.sector quadrant.klingons quadrant.bases quadrant.stars
-        let current = placeQuadrant random clutter e.sector
+    let enterQuadrant (random: IRandomService) (state: GameState) (e: Enterprise) =
+        let quadrant =
+            Array2D.get state.Quadrants e.Quadrant.x e.Quadrant.y
+
+        let clutter =
+            clutterMap random e.Sector quadrant.Klingons quadrant.Bases quadrant.Stars
+
+        let current = placeQuadrant random clutter e.Sector
         let klingons = setQuadrantKlingons clutter
-        { state with klingons=klingons; currentQuadrant = current }
+
+        { state with
+              Klingons = klingons
+              CurrentQuadrant = current }
 
 
-    let startNewGame (random : System.Random) =
-        let quadrants = Array2D.initBased 1 1 dim dim (fun x y -> createQuadrant random x y)
+    let startNewGame (random: IRandomService) =
+        let quadrants =
+            Array2D.initBased 1 1 dim dim (fun x y -> createQuadrant random x y)
+
         let enterprise = createEnterprise random
-        let startDate = int(((random.NextDouble()) * 20.0 + 20.0) * 100.0)
-        let state = { klingons = Array.empty; 
-                    currentQuadrant = (Array2D.zeroCreateBased 1 1 dim dim);
-                    quadrants=quadrants;
-                    stardate={current=startDate;start=startDate;turns=30};}
-        
+
+        let startDate =
+            int (((random.NextDouble()) * 20.0 + 20.0) * 100.0)
+
+        let state =
+            { Enterprise = enterprise;
+              Klingons = Array.empty
+              CurrentQuadrant = (Array2D.zeroCreateBased 1 1 dim dim)
+              Quadrants = quadrants
+              Stardate =
+                  { Current = startDate
+                    Start = startDate
+                    Turns = 30 } }
+
         enterQuadrant random state enterprise

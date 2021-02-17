@@ -2,4 +2,3 @@
 
 module Navigation =
     let navigation = 6
-
