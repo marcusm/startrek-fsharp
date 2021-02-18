@@ -130,3 +130,21 @@ module World =
                     Turns = 30 } }
 
         enterQuadrant random state enterprise
+
+    /// ########################################################
+    ///  These functions are used to check current world state
+    /// ########################################################
+
+    let remainingKlingonCount (state: GameState) =
+        state.Quadrants
+        |> Seq.cast<Quadrant>
+        |> Seq.sumBy (fun i -> i.Klingons)
+
+    let remainingStarbaseCount (state: GameState) =
+        state.Quadrants
+        |> Seq.cast<Quadrant>
+        |> Seq.sumBy (fun i -> i.Bases)
+
+    let isDocked (state: GameState) =
+        nearbySpace state.Enterprise.Sector
+        |> Seq.exists (fun q -> (Array2D.get state.CurrentQuadrant q.X q.Y) = baseId)
