@@ -120,7 +120,7 @@ module World =
             int (((random.NextDouble()) * 20.0 + 20.0) * 100.0)
 
         let state =
-            { Enterprise = enterprise;
+            { Enterprise = enterprise
               Klingons = Array.empty
               CurrentQuadrant = (Array2D.zeroCreateBased 1 1 dim dim)
               Quadrants = quadrants

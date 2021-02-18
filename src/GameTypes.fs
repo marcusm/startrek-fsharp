@@ -9,10 +9,19 @@ module GameTypes =
     let starId = 4
 
     type IRandomService =
-        abstract member Next: unit->int
-        abstract member Next: int->int
-        abstract member Next: int*int->int
-        abstract member NextDouble: unit->double
+        abstract member Next: unit -> int
+        abstract member Next: int -> int
+        abstract member Next: int * int -> int
+        abstract member NextDouble: unit -> double
+
+    type Random(seed: int) =
+        let rand = System.Random(seed)
+
+        interface IRandomService with
+            member this.Next() = rand.Next()
+            member this.Next(max: int) = rand.Next(max)
+            member this.Next(min: int, max: int) = rand.Next(min, max)
+            member this.NextDouble() = rand.NextDouble()
 
     type Point = { X: int; Y: int }
 
@@ -53,8 +62,9 @@ module GameTypes =
         | DamageControl
         | ShieldControl
 
-    let randInst<'T> (random:IRandomService) =
-        let cases = Reflection.FSharpType.GetUnionCases(typeof<'T>)
+    let randInst<'T> (random: IRandomService) =
+        let cases =
+            Reflection.FSharpType.GetUnionCases(typeof<'T>)
 
         let index = random.Next(cases.Length)
         let case = cases.[index]

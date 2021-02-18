@@ -2,8 +2,8 @@
 
 module Utils =
     open GameTypes
-    let getRandomSystem (random:IRandomService) = 
-        randInst<SystemDamage> (random)
+
+    let getRandomSystem (random: IRandomService) = randInst<SystemDamage> (random)
 
     let rec getRandomCoord (random: IRandomService) (exclude: QuadrantClutter) =
         let p =

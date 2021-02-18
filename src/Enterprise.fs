@@ -15,7 +15,7 @@ module Enterprise =
         |> List.map (fun x -> x.RepairSystem)
         |> List.filter (fun x -> x.Amount <> 0)
 
-    let updateDamageControl (random:IRandomService) (enterprise:Enterprise) =
+    let updateDamageControl (random: IRandomService) (enterprise: Enterprise) =
         let damage = repairSystems enterprise
 
         match System.Convert.ToDouble(random.NextDouble()) with
@@ -47,7 +47,7 @@ module Enterprise =
                           System = system }
                     | _ -> x)
 
-    let tick (random:IRandomService) (enterprise:Enterprise) =
+    let tick (random: IRandomService) (enterprise: Enterprise) =
         match condition enterprise with
         | ShipCondition.Destroyed -> enterprise
         | ShipCondition.DeadInSpace -> enterprise
