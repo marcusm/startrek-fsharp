@@ -1,4 +1,19 @@
-namespace StarTrek
+module StarTrek.GameTypes
+
+type IRandomService =
+    abstract member Next: unit -> int
+    abstract member Next: int -> int
+    abstract member Next: int * int -> int
+    abstract member NextDouble: unit -> double
+
+type Random(seed: int) =
+    let rand = System.Random(seed)
+
+    interface IRandomService with
+        member this.Next() = rand.Next()
+        member this.Next(max: int) = rand.Next(max)
+        member this.Next(min: int, max: int) = rand.Next(min, max)
+        member this.NextDouble() = rand.NextDouble()
 
 type Position = { X: int; Y: int }
 
@@ -9,51 +24,86 @@ type Sector =
     | Starbase
     | Enterprise
 
-type DeviceStatus = {
-    WarpEngines: float
-    ShortRangeSensors: float
-    LongRangeSensors: float
-    PhaserControl: float
-    PhotonTubes: float
-    DamageControl: float
-    ShieldControl: float
-    LibraryComputer: float
-}
-
-type QuadrantInfo = {
+type Quadrant = {
+    Quadrant: Position
     Klingons: int
     Starbases: int
     Stars: int
 }
 
-type GameState = {
-    Quadrant: Position
+type Stardate = {
+    Current: int
+    Start: int
+    Turns: int
+}
+
+type QuadrantClutter = Map<Position, int>
+
+type ShipCondition =
+    | Operational
+    | DeadInSpace
+    | Destroyed
+
+type SystemDamage =
+    | Computer
+    | WarpEngines
+    | ShortRangeSensors
+    | LongRangeSensors
+    | Phasers
+    | PhotonTubes
+    | DamageControl
+    | ShieldControl
+
+type Klingon = {
     Sector: Position
+    Energy: float
+} with
+
+    member this.ShipCondition =
+        match this.Energy with
+        | e when e < 0.0 -> ShipCondition.Destroyed
+        | _ -> ShipCondition.Operational
+
+type Damage = {
+    Amount: int
+    System: SystemDamage
+} with
+    member this.RepairSystem =
+        let { Amount = x; System = s } = this
+
+        match x with
+        | (a) when a < 0 -> { Amount = min 0 (x + 1); System = s }
+        | _ -> this
+
+type Enterprise = {
+    Sector: Position
+    Quadrant: Position
     Energy: float
     Shields: float
     Torpedoes: int
-    Stardate: float
-    TimeRemaining: float
-    KlingonsRemaining: int
-    BasesRemaining: int
-    Devices: DeviceStatus
-    QuadrantMap: QuadrantInfo[,]
-    SectorMap: Sector[,]
-    Condition: string
+    Damage: List<Damage>
+}
+
+type GameState = {
+    Enterprise: Enterprise
+    Klingons: Klingon []
+    CurrentQuadrant: int [,]
+    Quadrants: Quadrant [,]
+    Stardate: Stardate
 }
 
 module GameDefaults =
 
-    let initialDeviceStatus = {
-        WarpEngines = 0.0
-        ShortRangeSensors = 0.0
-        LongRangeSensors = 0.0
-        PhaserControl = 0.0
-        PhotonTubes = 0.0
-        DamageControl = 0.0
-        ShieldControl = 0.0
-        LibraryComputer = 0.0
-    }
+    let initialDeviceStatus = [
+        { Amount = 0; System = WarpEngines }
+        { Amount = 0; System = ShortRangeSensors }
+        { Amount = 0; System = LongRangeSensors }
+        { Amount = 0; System = Phasers }
+        { Amount = 0; System = PhotonTubes }
+        { Amount = 0; System = DamageControl }
+        { Amount = 0; System = ShieldControl }
+        { Amount = 0; System = Computer }
+    ]
 
     let deviceNames = [|
         "WARP ENGINES"

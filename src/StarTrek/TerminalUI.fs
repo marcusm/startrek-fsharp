@@ -2,7 +2,7 @@ module StarTrek.App.TerminalUI
 
 open Terminal.Gui
 open NStack
-open StarTrek
+open StarTrek.GameTypes
 open StarTrek.App
 
 let scanPanelWidth = 26  // 24 content + 2 border

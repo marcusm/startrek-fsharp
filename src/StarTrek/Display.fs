@@ -1,18 +1,17 @@
 module StarTrek.App.Display
 
-open StarTrek
+open StarTrek.GameTypes
 open StarTrek.Galaxy
 
 let border = "-=--=--=--=--=--=--=--=-"
 
 let statusLines (state: GameState) =
-    [| sprintf "STARDATE  %g" state.Stardate
-       sprintf "CONDITION %s" state.Condition
-       sprintf "QUADRANT  %d,%d" state.Quadrant.X state.Quadrant.Y
-       sprintf "SECTOR    %d,%d" state.Sector.X state.Sector.Y
-       sprintf "ENERGY    %g" state.Energy
-       sprintf "SHIELDS   %g" state.Shields
-       sprintf "PHOTON TORPEDOES %d" state.Torpedoes
+    [| sprintf "STARDATE  %d" state.Stardate.Current
+       sprintf "QUADRANT  %d,%d" state.Enterprise.Quadrant.X state.Enterprise.Quadrant.Y
+       sprintf "SECTOR    %d,%d" state.Enterprise.Sector.X state.Enterprise.Sector.Y
+       sprintf "ENERGY    %g" state.Enterprise.Energy
+       sprintf "SHIELDS   %g" state.Enterprise.Shields
+       sprintf "PHOTON TORPEDOES %d" state.Enterprise.Torpedoes
     |]
 
 let renderSectorRow (sectorMap: Sector[,]) (row: int) =
@@ -20,7 +19,8 @@ let renderSectorRow (sectorMap: Sector[,]) (row: int) =
     |> String.concat ""
 
 let renderScanLines (state: GameState) =
+    let sectorMap = createEmptySectorMap ()
     [| yield border
        for row in 0 .. galaxySize - 1 do
-           yield renderSectorRow state.SectorMap row
+           yield renderSectorRow sectorMap row
        yield border |]

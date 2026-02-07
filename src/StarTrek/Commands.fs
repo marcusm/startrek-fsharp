@@ -1,6 +1,6 @@
 module StarTrek.App.Commands
 
-open StarTrek
+open StarTrek.GameTypes
 
 let warpEngineControl (state: GameState) =
     ["WARP ENGINE CONTROL -- NOT YET IMPLEMENTED"], state

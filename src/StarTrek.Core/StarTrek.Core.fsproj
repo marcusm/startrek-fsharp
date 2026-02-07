@@ -7,6 +7,7 @@
 
   <ItemGroup>
     <Compile Include="GameTypes.fs" />
+    <Compile Include="Enterprise.fs" />
     <Compile Include="Galaxy.fs" />
   </ItemGroup>
 
