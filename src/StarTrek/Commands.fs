@@ -3,40 +3,32 @@ module StarTrek.App.Commands
 open StarTrek
 
 let warpEngineControl (state: GameState) =
-    printfn "WARP ENGINE CONTROL -- NOT YET IMPLEMENTED"
-    state
+    ["WARP ENGINE CONTROL -- NOT YET IMPLEMENTED"], state
 
 let shortRangeScan (state: GameState) =
-    printfn "SHORT RANGE SENSOR SCAN -- NOT YET IMPLEMENTED"
-    state
+    ["SHORT RANGE SENSOR SCAN -- NOT YET IMPLEMENTED"], state
 
 let longRangeScan (state: GameState) =
-    printfn "LONG RANGE SENSOR SCAN -- NOT YET IMPLEMENTED"
-    state
+    ["LONG RANGE SENSOR SCAN -- NOT YET IMPLEMENTED"], state
 
 let phaserControl (state: GameState) =
-    printfn "PHASER CONTROL -- NOT YET IMPLEMENTED"
-    state
+    ["PHASER CONTROL -- NOT YET IMPLEMENTED"], state
 
 let photonTorpedoControl (state: GameState) =
-    printfn "PHOTON TORPEDO CONTROL -- NOT YET IMPLEMENTED"
-    state
+    ["PHOTON TORPEDO CONTROL -- NOT YET IMPLEMENTED"], state
 
 let shieldControl (state: GameState) =
-    printfn "SHIELD CONTROL -- NOT YET IMPLEMENTED"
-    state
+    ["SHIELD CONTROL -- NOT YET IMPLEMENTED"], state
 
 let damageControlReport (state: GameState) =
-    printfn "DAMAGE CONTROL REPORT -- NOT YET IMPLEMENTED"
-    state
+    ["DAMAGE CONTROL REPORT -- NOT YET IMPLEMENTED"], state
 
 let libraryComputer (state: GameState) =
-    printfn "LIBRARY COMPUTER -- NOT YET IMPLEMENTED"
-    state
+    ["LIBRARY COMPUTER -- NOT YET IMPLEMENTED"], state
 
-let help () =
+let help () : string list =
     let path = System.IO.Path.Combine("doc", "help.txt")
     if System.IO.File.Exists(path) then
-        System.IO.File.ReadAllText(path) |> printfn "%s"
+        System.IO.File.ReadAllLines(path) |> Array.toList
     else
-        printfn "HELP FILE NOT FOUND"
+        ["HELP FILE NOT FOUND"]

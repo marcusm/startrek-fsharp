@@ -8,11 +8,16 @@
   <ItemGroup>
     <Compile Include="Display.fs" />
     <Compile Include="Commands.fs" />
+    <Compile Include="TerminalUI.fs" />
     <Compile Include="Program.fs" />
   </ItemGroup>
 
   <ItemGroup>
     <ProjectReference Include="..\StarTrek.Core\StarTrek.Core.fsproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Terminal.Gui" Version="1.19.0" />
   </ItemGroup>
 
 </Project>
