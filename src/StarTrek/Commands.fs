@@ -60,7 +60,10 @@ let shortRangeCommand (state: GameState) =
       sprintf "    CONDITION: %s" condition ], state
 
 let longRangeScan (state: GameState) =
-    ["LONG RANGE SENSOR SCAN -- NOT YET IMPLEMENTED"], state
+    if isLongRangeScannersDamaged state.Enterprise then
+        ["LONG RANGE SENSORS ARE INOPERABLE"], state
+    else
+        longRangeScanLines state, state
 
 let phaserControl (state: GameState) =
     ["PHASER CONTROL -- NOT YET IMPLEMENTED"], state

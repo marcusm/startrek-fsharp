@@ -209,3 +209,67 @@ let enterQuadrantTests =
             for k in state.Klingons do
                 Expect.equal k.Energy 200.0 "klingon energy should be 200"
     ]
+
+[<Tests>]
+let longRangeScanTests =
+    testList "longRangeScan" [
+        testCase "header contains enterprise quadrant" <| fun _ ->
+            let state = initializeGame 42
+            let lines = longRangeScanLines state
+            let qx = state.Enterprise.Quadrant.X
+            let qy = state.Enterprise.Quadrant.Y
+            Expect.equal lines.[0] (sprintf "LONG RANGE SCAN FOR QUADRANT %d,%d" qx qy) "header should show quadrant"
+
+        testCase "output has correct structure" <| fun _ ->
+            let state = initializeGame 42
+            let lines = longRangeScanLines state
+            // header + (separator + data row) * 3 + trailing separator = 1 + 3*2 + 1 = 8 but
+            // actually: header, sep, row, sep, row, sep, row, sep = 8 lines
+            Expect.equal lines.Length 8 "should have 8 lines (header + 3 data rows with separators)"
+            Expect.equal lines.[1] "-------------------" "first separator"
+            Expect.equal lines.[3] "-------------------" "second separator"
+            Expect.equal lines.[5] "-------------------" "third separator"
+            Expect.equal lines.[7] "-------------------" "fourth separator"
+
+        testCase "center cell matches enterprise quadrant encoding" <| fun _ ->
+            let state = initializeGame 42
+            let lines = longRangeScanLines state
+            let qx = state.Enterprise.Quadrant.X - 1
+            let qy = state.Enterprise.Quadrant.Y - 1
+            let expected = encodeQuadrant state.Quadrants.[qx, qy]
+            let centerRow = lines.[4] // middle data row (header, sep, row1, sep, row2)
+            Expect.stringContains centerRow (sprintf "%03d" expected) "center should contain enterprise quadrant code"
+
+        testCase "corner quadrant shows out-of-bounds markers" <| fun _ ->
+            let state = initializeGame 42
+            let cornerState =
+                { state with Enterprise = { state.Enterprise with Quadrant = { X = 1; Y = 1 } } }
+            let lines = longRangeScanLines cornerState
+            // Top-left corner: row 0 should have *** for all out-of-bounds
+            Expect.stringContains lines.[2] "***" "top row should have out-of-bounds marker"
+            // First data row (dy=-1): all three cells have Y=0 which is out of bounds
+            // The row pattern is ": XXX : XXX : XXX :"
+            Expect.equal lines.[2] ": *** : *** : *** :" "entire top row out of bounds at corner 1,1"
+
+        testCase "edge quadrant has partial out-of-bounds" <| fun _ ->
+            let state = initializeGame 42
+            let edgeState =
+                { state with Enterprise = { state.Enterprise with Quadrant = { X = 1; Y = 4 } } }
+            let lines = longRangeScanLines edgeState
+            // X=1 means dx=-1 gives X=0 (out of bounds), dx=0 and dx=1 are valid
+            // Each data row should start with *** then two valid entries
+            for rowIdx in [2; 4; 6] do
+                Expect.stringContains lines.[rowIdx] "***" $"row {rowIdx} should have out-of-bounds on left"
+
+        testCase "isLongRangeScannersDamaged returns false when undamaged" <| fun _ ->
+            let state = initializeGame 42
+            Expect.isFalse (isLongRangeScannersDamaged state.Enterprise) "should not be damaged initially"
+
+        testCase "isLongRangeScannersDamaged returns true when damaged" <| fun _ ->
+            let state = initializeGame 42
+            let damagedEnterprise =
+                { state.Enterprise with
+                    Damage = state.Enterprise.Damage |> List.map (fun d ->
+                        if d.System = LongRangeSensors then { d with Amount = -1 } else d) }
+            Expect.isTrue (isLongRangeScannersDamaged damagedEnterprise) "should be damaged"
+    ]

@@ -51,6 +51,33 @@ let getCourseVector (course: float) =
         let dy = dy1 + frac * (dy2 - dy1)
         Some (dx, dy)
 
+let isLongRangeScannersDamaged (enterprise: Enterprise) : bool =
+    enterprise.Damage
+    |> List.exists (fun d -> d.System = LongRangeSensors && d.Amount < 0)
+
+let longRangeScanLines (state: GameState) : string list =
+    let qx = state.Enterprise.Quadrant.X
+    let qy = state.Enterprise.Quadrant.Y
+    let separator = "-------------------"
+    let header = sprintf "LONG RANGE SCAN FOR QUADRANT %d,%d" qx qy
+    [
+        yield header
+        yield separator
+        for dy in -1 .. 1 do
+            let cells =
+                [ for dx in -1 .. 1 do
+                    let nx = qx + dx
+                    let ny = qy + dy
+                    let pos = { X = nx; Y = ny }
+                    if isValidPosition pos then
+                        let q = state.Quadrants.[nx - 1, ny - 1]
+                        sprintf "%03d" (encodeQuadrant q)
+                    else
+                        "***" ]
+            yield sprintf ": %s : %s : %s :" cells.[0] cells.[1] cells.[2]
+            yield separator
+    ]
+
 let warpEnergyCost (warpFactor: float) : int =
     int (warpFactor * 8.0 + 0.5) + 10
 
