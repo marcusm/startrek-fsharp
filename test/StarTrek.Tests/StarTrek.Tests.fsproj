@@ -13,6 +13,7 @@
   <ItemGroup>
     <Compile Include="EnterpriseTests.fs" />
     <Compile Include="GalaxyTests.fs" />
+    <Compile Include="WarpTests.fs" />
     <Compile Include="Main.fs" />
   </ItemGroup>
 

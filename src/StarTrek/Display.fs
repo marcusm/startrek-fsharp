@@ -19,8 +19,7 @@ let renderSectorRow (sectorMap: Sector[,]) (row: int) =
     |> String.concat ""
 
 let renderScanLines (state: GameState) =
-    let sectorMap = createEmptySectorMap ()
     [| yield border
        for row in 0 .. galaxySize - 1 do
-           yield renderSectorRow sectorMap row
+           yield renderSectorRow state.CurrentQuadrant row
        yield border |]

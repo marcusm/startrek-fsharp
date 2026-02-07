@@ -87,9 +87,10 @@ type Enterprise = {
 type GameState = {
     Enterprise: Enterprise
     Klingons: Klingon []
-    CurrentQuadrant: int [,]
+    CurrentQuadrant: Sector [,]
     Quadrants: Quadrant [,]
     Stardate: Stardate
+    Random: IRandomService
 }
 
 module GameDefaults =

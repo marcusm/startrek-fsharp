@@ -9,6 +9,12 @@ let scanPanelWidth = 26  // 24 content + 2 border
 let topPanelHeight = 12  // 10 content + 2 border
 let commandPanelHeight = 3
 
+type InputMode =
+    | CommandMode
+    | WarpCourseInput
+    | WarpFactorInput of course: float
+
+let mutable private inputMode : InputMode = CommandMode
 let mutable private gameState : GameState option = None
 let mutable private messageLog : string list = []
 // Queue of message lines waiting to be revealed page by page
@@ -29,9 +35,28 @@ let private hintLabel = new Label(ustring.Make "")
 let private commandLabel = new Label(ustring.Make "COMMAND? > ")
 let private commandField = new TextField(ustring.Make "")
 
+let private conditionColorScheme (condition: string) =
+    let fg =
+        match condition with
+        | "RED" -> Color.BrightRed
+        | "YELLOW" -> Color.BrightYellow
+        | "GREEN" -> Color.BrightGreen
+        | _ -> Color.White
+    let scheme = ColorScheme()
+    let attr = Application.Driver.MakeAttribute(fg, Color.Black)
+    scheme.Normal <- attr
+    scheme.Focus <- attr
+    scheme.HotNormal <- attr
+    scheme.HotFocus <- attr
+    scheme
+
 let private refreshScan (state: GameState) =
     let lines = Display.renderScanLines state
     scanLabel.Text <- ustring.Make (System.String.Join("\n", lines))
+    let condition = Commands.getCondition state
+    let scheme = conditionColorScheme condition
+    scanFrame.ColorScheme <- scheme
+    scanLabel.ColorScheme <- scheme
 
 let private refreshStatus (state: GameState) =
     let lines = Display.statusLines state
@@ -96,10 +121,15 @@ let private refreshAll (state: GameState) =
     refreshScan state
     refreshStatus state
 
+let private updatePrompt () =
+    match inputMode with
+    | CommandMode -> commandLabel.Text <- ustring.Make "COMMAND? > "
+    | WarpCourseInput -> commandLabel.Text <- ustring.Make "COURSE (1-9)? > "
+    | WarpFactorInput _ -> commandLabel.Text <- ustring.Make "WARP FACTOR (0-8)? > "
+
 let processCommand (input: string) (state: GameState) : string list * GameState =
     match input.Trim().ToUpper() with
-    | "0" -> Commands.warpEngineControl state
-    | "1" -> Commands.shortRangeScan state
+    | "1" -> Commands.shortRangeCommand state
     | "2" -> Commands.longRangeScan state
     | "3" -> Commands.phaserControl state
     | "4" -> Commands.photonTorpedoControl state
@@ -116,12 +146,45 @@ let private onCommandEntered () =
     | Some state ->
         let input = commandField.Text.ToString()
         commandField.Text <- ustring.Make ""
-        if input <> null && input.Length > 0 then
-            let msgs, newState = processCommand input state
-            gameState <- Some newState
-            refreshAll newState
-            if msgs.Length > 0 then
-                appendMessages msgs
+
+        match inputMode with
+        | CommandMode ->
+            if input <> null && input.Trim().ToUpper() = "0" then
+                let msgs = Commands.warpStart state
+                inputMode <- WarpCourseInput
+                updatePrompt ()
+                if msgs.Length > 0 then appendMessages msgs
+            elif input <> null && input.Length > 0 then
+                let msgs, newState = processCommand input state
+                gameState <- Some newState
+                refreshAll newState
+                if msgs.Length > 0 then appendMessages msgs
+
+        | WarpCourseInput ->
+            if input = null || input.Trim().Length = 0 then
+                inputMode <- CommandMode
+                updatePrompt ()
+            else
+                match Commands.warpValidateCourse (input.Trim()) with
+                | Ok course ->
+                    inputMode <- WarpFactorInput course
+                    updatePrompt ()
+                | Error msg ->
+                    appendMessages [msg]
+                    inputMode <- CommandMode
+                    updatePrompt ()
+
+        | WarpFactorInput course ->
+            if input = null || input.Trim().Length = 0 then
+                inputMode <- CommandMode
+                updatePrompt ()
+            else
+                let msgs, newState = Commands.warpValidateAndExecute course (input.Trim()) state
+                gameState <- Some newState
+                inputMode <- CommandMode
+                updatePrompt ()
+                refreshAll newState
+                if msgs.Length > 0 then appendMessages msgs
 
 let run (initialState: GameState) =
     Application.Init()

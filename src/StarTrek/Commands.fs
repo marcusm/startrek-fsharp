@@ -1,12 +1,63 @@
 module StarTrek.App.Commands
 
 open StarTrek.GameTypes
+open StarTrek.Galaxy
 
 let warpEngineControl (state: GameState) =
     ["WARP ENGINE CONTROL -- NOT YET IMPLEMENTED"], state
 
-let shortRangeScan (state: GameState) =
-    ["SHORT RANGE SENSOR SCAN -- NOT YET IMPLEMENTED"], state
+let warpStart (state: GameState) : string list =
+    if isWarpDamaged state.Enterprise then
+        let maxWf = maxWarpFactor state.Enterprise
+        [sprintf "WARP ENGINES ARE DAMAGED. MAXIMUM SPEED = WARP %g" maxWf]
+    else
+        []
+
+let warpValidateCourse (input: string) : Result<float, string> =
+    match System.Double.TryParse(input) with
+    | true, course when course >= 1.0 && course < 9.0 -> Ok course
+    | true, _ -> Error "  LT. SULU REPORTS, 'INCORRECT COURSE DATA, SIR!'"
+    | false, _ -> Error "  LT. SULU REPORTS, 'INCORRECT COURSE DATA, SIR!'"
+
+let warpValidateAndExecute (course: float) (input: string) (state: GameState) : string list * GameState =
+    match System.Double.TryParse(input) with
+    | true, wf when wf > 0.0 && wf <= maxWarpFactor state.Enterprise ->
+        match getCourseVector course with
+        | Some direction -> executeWarp direction wf state
+        | None -> ["  LT. SULU REPORTS, 'INCORRECT COURSE DATA, SIR!'"], state
+    | true, wf when wf > maxWarpFactor state.Enterprise ->
+        [sprintf "CHIEF ENGINEER SCOTT REPORTS 'THE ENGINES WON'T TAKE WARP %g!'" wf], state
+    | _ ->
+        ["CHIEF ENGINEER SCOTT REPORTS 'THE ENGINES WON'T TAKE THAT, SIR!'"], state
+
+let private isAdjacent (a: Position) (b: Position) =
+    abs (a.X - b.X) <= 1 && abs (a.Y - b.Y) <= 1 && a <> b
+
+let private isDocked (state: GameState) =
+    let ep = state.Enterprise.Sector
+    let sectorMap = state.CurrentQuadrant
+    seq {
+        for dy in -1..1 do
+            for dx in -1..1 do
+                if dx <> 0 || dy <> 0 then
+                    let nx, ny = ep.X + dx, ep.Y + dy
+                    if nx >= 1 && nx <= galaxySize && ny >= 1 && ny <= galaxySize then
+                        yield sectorMap.[ny - 1, nx - 1]
+    }
+    |> Seq.exists (fun s -> match s with Starbase -> true | _ -> false)
+
+let getCondition (state: GameState) =
+    if state.Klingons.Length > 0 then "RED"
+    elif isDocked state then "DOCKED"
+    elif state.Enterprise.Energy + state.Enterprise.Shields < 1000.0 then "YELLOW"
+    else "GREEN"
+
+let shortRangeCommand (state: GameState) =
+    let qx = state.Enterprise.Quadrant.X
+    let qy = state.Enterprise.Quadrant.Y
+    let condition = getCondition state
+    [ sprintf "*** SHORT RANGE SENSOR SCAN FOR QUADRANT %d,%d ***" qx qy
+      sprintf "    CONDITION: %s" condition ], state
 
 let longRangeScan (state: GameState) =
     ["LONG RANGE SENSOR SCAN -- NOT YET IMPLEMENTED"], state

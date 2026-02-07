@@ -135,3 +135,77 @@ let initializationTests =
                     Expect.equal q.Quadrant.X (x + 1) $"quadrant [{x},{y}] X should be {x + 1}"
                     Expect.equal q.Quadrant.Y (y + 1) $"quadrant [{x},{y}] Y should be {y + 1}"
     ]
+
+[<Tests>]
+let enterQuadrantTests =
+    testList "enterQuadrant" [
+        testCase "places enterprise at its sector position" <| fun _ ->
+            let state = initializeGame 42
+            let ep = state.Enterprise.Sector
+            let cell = state.CurrentQuadrant.[ep.Y - 1, ep.X - 1]
+            Expect.equal cell Enterprise "enterprise should be at its sector position"
+
+        testCase "places correct number of klingons" <| fun _ ->
+            let state = initializeGame 42
+            let qx = state.Enterprise.Quadrant.X - 1
+            let qy = state.Enterprise.Quadrant.Y - 1
+            let expectedKlingons = state.Quadrants.[qx, qy].Klingons
+            let actualKlingons =
+                state.CurrentQuadrant
+                |> Seq.cast<Sector>
+                |> Seq.filter (fun s -> match s with Klingon _ -> true | _ -> false)
+                |> Seq.length
+            Expect.equal actualKlingons expectedKlingons "klingon count should match quadrant metadata"
+            Expect.equal state.Klingons.Length expectedKlingons "Klingons array should match"
+
+        testCase "places correct number of starbases" <| fun _ ->
+            let state = initializeGame 42
+            let qx = state.Enterprise.Quadrant.X - 1
+            let qy = state.Enterprise.Quadrant.Y - 1
+            let expectedBases = state.Quadrants.[qx, qy].Starbases
+            let actualBases =
+                state.CurrentQuadrant
+                |> Seq.cast<Sector>
+                |> Seq.filter (fun s -> match s with Starbase -> true | _ -> false)
+                |> Seq.length
+            Expect.equal actualBases expectedBases "starbase count should match quadrant metadata"
+
+        testCase "places correct number of stars" <| fun _ ->
+            let state = initializeGame 42
+            let qx = state.Enterprise.Quadrant.X - 1
+            let qy = state.Enterprise.Quadrant.Y - 1
+            let expectedStars = state.Quadrants.[qx, qy].Stars
+            let actualStars =
+                state.CurrentQuadrant
+                |> Seq.cast<Sector>
+                |> Seq.filter (fun s -> match s with Star -> true | _ -> false)
+                |> Seq.length
+            Expect.equal actualStars expectedStars "star count should match quadrant metadata"
+
+        testCase "no collisions - all placed items at distinct positions" <| fun _ ->
+            let state = initializeGame 42
+            let occupied =
+                seq {
+                    for row in 0..7 do
+                        for col in 0..7 do
+                            match state.CurrentQuadrant.[row, col] with
+                            | Empty -> ()
+                            | _ -> yield (row, col)
+                }
+                |> Seq.toList
+            let distinctCount = occupied |> List.distinct |> List.length
+            Expect.equal distinctCount occupied.Length "all occupied positions should be distinct"
+
+        testCase "deterministic with same seed" <| fun _ ->
+            let state1 = initializeGame 123
+            let state2 = initializeGame 123
+            for row in 0..7 do
+                for col in 0..7 do
+                    Expect.equal state1.CurrentQuadrant.[row, col] state2.CurrentQuadrant.[row, col]
+                        $"sector [{row},{col}] should be identical"
+
+        testCase "klingons have 200 energy" <| fun _ ->
+            let state = initializeGame 42
+            for k in state.Klingons do
+                Expect.equal k.Energy 200.0 "klingon energy should be 200"
+    ]
