@@ -10,6 +10,22 @@ let resetEnterprise (quadrant: Position) (sector: Position) : Enterprise =
       Torpedoes = 10
       Damage = GameDefaults.initialDeviceStatus }
 
+let systemName (system: SystemDamage) : string =
+    match system with
+    | WarpEngines -> "WARP ENGINES"
+    | ShortRangeSensors -> "SHORT RANGE SENSORS"
+    | LongRangeSensors -> "LONG RANGE SENSORS"
+    | Phasers -> "PHASER CONTROL"
+    | PhotonTubes -> "PHOTON TUBES"
+    | DamageControl -> "DAMAGE CONTROL"
+    | ShieldControl -> "SHIELD CONTROL"
+    | Computer -> "LIBRARY-COMPUTER"
+
+let getDamagedSystems (enterprise: Enterprise) : (string * int) list =
+    enterprise.Damage
+    |> List.filter (fun d -> d.Amount < 0)
+    |> List.map (fun d -> systemName d.System, d.Amount)
+
 let isShieldControlDamaged (enterprise: Enterprise) : bool =
     enterprise.Damage
     |> List.exists (fun d -> d.System = ShieldControl && d.Amount < 0)

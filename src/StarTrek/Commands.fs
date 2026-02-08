@@ -122,7 +122,15 @@ let shieldValidateAndExecute (input: string) (state: GameState) : string list * 
         ["INVALID. SHIELDS UNCHANGED"], state
 
 let damageControlReport (state: GameState) =
-    ["DAMAGE CONTROL REPORT -- NOT YET IMPLEMENTED"], state
+    let damaged = getDamagedSystems state.Enterprise
+    if damaged.IsEmpty then
+        ["DAMAGE CONTROL REPORT: ALL SYSTEMS FUNCTIONAL"], state
+    else
+        let header = ["DAMAGE CONTROL REPORT:"]
+        let lines =
+            damaged
+            |> List.map (fun (name, amount) -> sprintf "  %-22s %d" name amount)
+        header @ lines, state
 
 let libraryComputer (state: GameState) =
     ["LIBRARY COMPUTER -- NOT YET IMPLEMENTED"], state

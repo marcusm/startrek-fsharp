@@ -78,4 +78,31 @@ let enterpriseTests =
                 Expect.equal result.Shields 3000.0 "shields should be 3000"
                 Expect.equal result.Energy 0.0 "energy should be 0"
             | Error msg -> failtest msg
+
+        testCase "getDamagedSystems returns empty list when no systems damaged" <| fun _ ->
+            let ship = resetEnterprise { X = 1; Y = 1 } { X = 1; Y = 1 }
+            let damaged = getDamagedSystems ship
+            Expect.isEmpty damaged "should have no damaged systems"
+
+        testCase "getDamagedSystems returns only damaged systems" <| fun _ ->
+            let ship = resetEnterprise { X = 1; Y = 1 } { X = 1; Y = 1 }
+            let damageList =
+                ship.Damage |> List.map (fun d ->
+                    match d.System with
+                    | Phasers -> { d with Amount = -3 }
+                    | WarpEngines -> { d with Amount = -1 }
+                    | _ -> d)
+            let withDamage = { ship with Damage = damageList }
+            let damaged = getDamagedSystems withDamage
+            Expect.equal damaged.Length 2 "should have 2 damaged systems"
+            Expect.containsAll (damaged |> List.map fst) ["PHASER CONTROL"; "WARP ENGINES"] "should contain damaged system names"
+
+        testCase "getDamagedSystems includes repair amount" <| fun _ ->
+            let ship = resetEnterprise { X = 1; Y = 1 } { X = 1; Y = 1 }
+            let damageList =
+                ship.Damage |> List.map (fun d ->
+                    if d.System = Computer then { d with Amount = -5 } else d)
+            let withDamage = { ship with Damage = damageList }
+            let damaged = getDamagedSystems withDamage
+            Expect.equal damaged [("LIBRARY-COMPUTER", -5)] "should show computer with -5"
     ]
