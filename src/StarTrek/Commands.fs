@@ -66,8 +66,24 @@ let longRangeScan (state: GameState) =
     else
         longRangeScanLines state, state
 
-let phaserControl (state: GameState) =
-    ["PHASER CONTROL -- NOT YET IMPLEMENTED"], state
+let phaserStart (state: GameState) : string list * bool =
+    if isPhasersDamaged state.Enterprise then
+        let repair = getPhaserRepairTime state.Enterprise
+        [sprintf "PHASER DAMAGED, %d STARDATES ESTIMATED FOR REPAIR" repair], false
+    elif state.Klingons.Length = 0 then
+        ["PHASER FIRED AT EMPTY SPACE."], false
+    else
+        [sprintf "PHASERS LOCKED ON TARGET. ENERGY AVAILABLE = %.0f" state.Enterprise.Energy], true
+
+let phaserValidateAndExecute (input: string) (state: GameState) : string list * GameState =
+    match System.Double.TryParse(input) with
+    | true, amount when amount > 0.0 ->
+        if amount > state.Enterprise.Energy then
+            [sprintf "SPOCK: WE HAVE ONLY %.0f ENERGY UNITS." state.Enterprise.Energy], state
+        else
+            firePhasers amount state
+    | _ ->
+        [], state
 
 let photonTorpedoControl (state: GameState) =
     ["PHOTON TORPEDO CONTROL -- NOT YET IMPLEMENTED"], state

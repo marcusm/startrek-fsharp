@@ -11,7 +11,7 @@ let processCommand (input: string) (state: GameState) : string list * GameState 
     match input.Trim().ToUpper() with
     | "1" -> Commands.shortRangeCommand state
     | "2" -> Commands.longRangeScan state
-    | "3" -> Commands.phaserControl state
+    | "3" -> [], state // handled in handleCommandMode
     | "4" -> Commands.photonTorpedoControl state
     | "5" -> Commands.shieldControl state
     | "6" -> Commands.damageControlReport state
@@ -32,6 +32,12 @@ let private handleCommandMode (input: string) (state: GameState) =
             let msgs = Commands.warpStart state
             inputMode <- WarpCourseInput
             updatePrompt ()
+            if msgs.Length > 0 then TerminalUI.appendMessages msgs
+        | "3" ->
+            let msgs, canFire = Commands.phaserStart state
+            if canFire then
+                inputMode <- PhaserEnergyInput
+                updatePrompt ()
             if msgs.Length > 0 then TerminalUI.appendMessages msgs
         | "5" ->
             let msgs, _ = Commands.shieldControl state
@@ -88,6 +94,19 @@ let private handleShieldEnergyInput (input: string) (state: GameState) =
         TerminalUI.refreshAll newState
         if msgs.Length > 0 then TerminalUI.appendMessages msgs
 
+let private handlePhaserEnergyInput (input: string) (state: GameState) =
+    match input with
+    | null | "" ->
+        inputMode <- CommandMode
+        updatePrompt ()
+    | _ ->
+        let msgs, newState = Commands.phaserValidateAndExecute (input.Trim()) state
+        gameState <- Some newState
+        inputMode <- CommandMode
+        updatePrompt ()
+        TerminalUI.refreshAll newState
+        if msgs.Length > 0 then TerminalUI.appendMessages msgs
+
 let private onCommandEntered (input: string) =
     match gameState with
     | None -> ()
@@ -97,6 +116,7 @@ let private onCommandEntered (input: string) =
         | WarpCourseInput -> handleWarpCourseInput input
         | WarpFactorInput course -> handleWarpFactorInput course input state
         | ShieldEnergyInput -> handleShieldEnergyInput input state
+        | PhaserEnergyInput -> handlePhaserEnergyInput input state
 
 let run (initialState: GameState) =
     gameState <- Some initialState
