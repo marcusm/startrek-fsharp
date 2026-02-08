@@ -18,6 +18,10 @@ let isPhasersDamaged (enterprise: Enterprise) : bool =
     enterprise.Damage
     |> List.exists (fun d -> d.System = Phasers && d.Amount < 0)
 
+let isPhotonTubesDamaged (enterprise: Enterprise) : bool =
+    enterprise.Damage
+    |> List.exists (fun d -> d.System = PhotonTubes && d.Amount < 0)
+
 let isComputerDamaged (enterprise: Enterprise) : bool =
     enterprise.Damage
     |> List.exists (fun d -> d.System = Computer && d.Amount < 0)
@@ -115,3 +119,92 @@ let transferShields (requested: float) (enterprise: Enterprise) : Result<Enterpr
         Error "SHIELD CONTROL REPORTS: 'THIS IS NOT THE FEDERATION TREASURY.'\nSHIELDS UNCHANGED"
     else
         Ok { enterprise with Shields = requested; Energy = total - requested }
+
+let firePhotonTorpedo (direction: float * float) (state: GameState) : string list * GameState =
+    let enterprise = state.Enterprise
+    let newEnterprise = { enterprise with Torpedoes = enterprise.Torpedoes - 1 }
+    let dx, dy = direction
+    let startX = float enterprise.Sector.X
+    let startY = float enterprise.Sector.Y
+
+    let rec trace (fx: float) (fy: float) (msgs: string list) (currentState: GameState) =
+        let nx = fx + dx
+        let ny = fy + dy
+        let sx = int (System.Math.Round(nx))
+        let sy = int (System.Math.Round(ny))
+
+        if sx < 1 || sx > 8 || sy < 1 || sy > 8 then
+            msgs @ ["TORPEDO MISSED"], currentState
+        else
+            let trackMsg = sprintf "TORPEDO TRACK: %d,%d" sx sy
+            let msgs = msgs @ [trackMsg]
+            match currentState.CurrentQuadrant.[sy - 1, sx - 1] with
+            | Empty -> trace nx ny msgs currentState
+            | Klingon _ ->
+                let damage = float (280 + state.Random.Next(100))
+                let hitKlingon =
+                    currentState.Klingons
+                    |> Array.tryFind (fun k -> k.Sector.X = sx && k.Sector.Y = sy)
+                match hitKlingon with
+                | Some klingon ->
+                    let newEnergy = klingon.Energy - damage
+                    if newEnergy <= 0.0 then
+                        let destroyMsg = "*** KLINGON DESTROYED ***"
+                        let newSectorMap = Array2D.copy currentState.CurrentQuadrant
+                        newSectorMap.[sy - 1, sx - 1] <- Empty
+                        let qx = currentState.Enterprise.Quadrant.X - 1
+                        let qy = currentState.Enterprise.Quadrant.Y - 1
+                        let newQuadrants = Array2D.copy currentState.Quadrants
+                        let q = newQuadrants.[qx, qy]
+                        newQuadrants.[qx, qy] <- { q with Klingons = q.Klingons - 1 }
+                        let survivingKlingons =
+                            currentState.Klingons
+                            |> Array.filter (fun k -> k.Sector <> klingon.Sector)
+                        let newState =
+                            { currentState with
+                                Klingons = survivingKlingons
+                                CurrentQuadrant = newSectorMap
+                                Quadrants = newQuadrants }
+                        msgs @ [destroyMsg], newState
+                    else
+                        let remainMsg = sprintf "(SENSORS SHOW %.0f UNITS REMAINING)" newEnergy
+                        let updatedKlingons =
+                            currentState.Klingons
+                            |> Array.map (fun k ->
+                                if k.Sector.X = sx && k.Sector.Y = sy then { k with Energy = newEnergy }
+                                else k)
+                        let newSectorMap = Array2D.copy currentState.CurrentQuadrant
+                        newSectorMap.[sy - 1, sx - 1] <- Klingon newEnergy
+                        let newState =
+                            { currentState with
+                                Klingons = updatedKlingons
+                                CurrentQuadrant = newSectorMap }
+                        msgs @ [remainMsg], newState
+                | None -> trace nx ny msgs currentState
+            | Starbase ->
+                let newSectorMap = Array2D.copy currentState.CurrentQuadrant
+                newSectorMap.[sy - 1, sx - 1] <- Empty
+                let qx = currentState.Enterprise.Quadrant.X - 1
+                let qy = currentState.Enterprise.Quadrant.Y - 1
+                let newQuadrants = Array2D.copy currentState.Quadrants
+                let q = newQuadrants.[qx, qy]
+                newQuadrants.[qx, qy] <- { q with Starbases = q.Starbases - 1 }
+                let newState =
+                    { currentState with
+                        CurrentQuadrant = newSectorMap
+                        Quadrants = newQuadrants }
+                msgs @ ["*** STARBASE DESTROYED ***"; "STARFLEET COMMAND WILL HEAR OF THIS!"], newState
+            | Star ->
+                if state.Random.NextDouble() < 0.5 then
+                    msgs @ ["STAR ABSORBED TORPEDO ENERGY"], currentState
+                else
+                    let newDamage =
+                        currentState.Enterprise.Damage
+                        |> List.map (fun d -> { d with Amount = d.Amount - state.Random.Next(3) })
+                    let newEnt = { currentState.Enterprise with Damage = newDamage }
+                    let newState = { currentState with Enterprise = newEnt }
+                    msgs @ ["STAR RADIATION CAUSED DAMAGE TO SHIP SYSTEMS"], newState
+            | Enterprise -> trace nx ny msgs currentState
+
+    let stateWithTorpedo = { state with Enterprise = newEnterprise }
+    trace startX startY [] stateWithTorpedo

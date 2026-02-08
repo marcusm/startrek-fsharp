@@ -30,6 +30,7 @@ type InputMode =
     | WarpFactorInput of course: float
     | ShieldEnergyInput
     | PhaserEnergyInput
+    | TorpedoCourseInput
 
 let promptText mode =
     match mode with
@@ -38,3 +39,4 @@ let promptText mode =
     | WarpFactorInput _ -> "WARP FACTOR (0-8)? > "
     | ShieldEnergyInput -> "NUMBER OF UNITS TO SHIELDS? > "
     | PhaserEnergyInput -> "UNITS TO FIRE? > "
+    | TorpedoCourseInput -> "TORPEDO COURSE (1-9)? > "

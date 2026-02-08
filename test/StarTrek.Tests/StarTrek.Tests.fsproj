@@ -15,6 +15,7 @@
     <Compile Include="GalaxyTests.fs" />
     <Compile Include="WarpTests.fs" />
     <Compile Include="PhaserTests.fs" />
+    <Compile Include="TorpedoTests.fs" />
     <Compile Include="Main.fs" />
   </ItemGroup>
 

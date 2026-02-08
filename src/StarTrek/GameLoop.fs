@@ -13,7 +13,7 @@ let processCommand (input: string) (state: GameState) : string list * GameState 
     | "1" -> Commands.shortRangeCommand state
     | "2" -> Commands.longRangeScan state
     | "3" -> [], state // handled in handleCommandMode
-    | "4" -> Commands.photonTorpedoControl state
+    | "4" -> [], state // handled in handleCommandMode
     | "5" -> Commands.shieldControl state
     | "6" -> Commands.damageControlReport state
     | "7" -> Commands.libraryComputer state
@@ -49,6 +49,12 @@ let private handleCommandMode (input: string) (state: GameState) =
             let msgs, canFire = Commands.phaserStart state
             if canFire then
                 inputMode <- PhaserEnergyInput
+                updatePrompt ()
+            if msgs.Length > 0 then TerminalUI.appendMessages msgs
+        | "4" ->
+            let msgs, canFire = Commands.torpedoStart state
+            if canFire then
+                inputMode <- TorpedoCourseInput
                 updatePrompt ()
             if msgs.Length > 0 then TerminalUI.appendMessages msgs
         | "5" ->
@@ -123,6 +129,21 @@ let private handlePhaserEnergyInput (input: string) (state: GameState) =
         TerminalUI.refreshAll newState
         if msgs.Length > 0 then TerminalUI.appendMessages msgs
 
+let private handleTorpedoCourseInput (input: string) (state: GameState) =
+    match input with
+    | null | "" ->
+        inputMode <- CommandMode
+        updatePrompt ()
+    | _ ->
+        let msgs, newState =
+            executeWithKlingonAttack state (fun s ->
+                Commands.torpedoValidateAndExecute (input.Trim()) s)
+        gameState <- Some newState
+        inputMode <- CommandMode
+        updatePrompt ()
+        TerminalUI.refreshAll newState
+        if msgs.Length > 0 then TerminalUI.appendMessages msgs
+
 let private onCommandEntered (input: string) =
     match gameState with
     | None -> ()
@@ -133,6 +154,7 @@ let private onCommandEntered (input: string) =
         | WarpFactorInput course -> handleWarpFactorInput course input state
         | ShieldEnergyInput -> handleShieldEnergyInput input state
         | PhaserEnergyInput -> handlePhaserEnergyInput input state
+        | TorpedoCourseInput -> handleTorpedoCourseInput input state
 
 let run (initialState: GameState) =
     gameState <- Some initialState

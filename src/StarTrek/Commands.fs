@@ -85,8 +85,22 @@ let phaserValidateAndExecute (input: string) (state: GameState) : string list * 
     | _ ->
         [], state
 
-let photonTorpedoControl (state: GameState) =
-    ["PHOTON TORPEDO CONTROL -- NOT YET IMPLEMENTED"], state
+let torpedoStart (state: GameState) : string list * bool =
+    if isPhotonTubesDamaged state.Enterprise then
+        ["PHOTON TUBES ARE NOT OPERATIONAL"], false
+    elif state.Enterprise.Torpedoes = 0 then
+        ["ALL PHOTON TORPEDOES EXPENDED"], false
+    else
+        [sprintf "TORPEDO COURSE (1-9)? TORPEDOES LEFT: %d" state.Enterprise.Torpedoes], true
+
+let torpedoValidateAndExecute (input: string) (state: GameState) : string list * GameState =
+    match System.Double.TryParse(input) with
+    | true, course when course >= 1.0 && course < 9.0 ->
+        match getCourseVector course with
+        | Some direction -> firePhotonTorpedo direction state
+        | None -> ["ENSIGN CHEKOV REPORTS, 'INCORRECT COURSE DATA, SIR!'"], state
+    | _ ->
+        ["ENSIGN CHEKOV REPORTS, 'INCORRECT COURSE DATA, SIR!'"], state
 
 let shieldControl (state: GameState) =
     if isShieldControlDamaged state.Enterprise then

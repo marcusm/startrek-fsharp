@@ -35,7 +35,7 @@ let enterpriseTests =
             let damaged = { ship with Damage = ship.Damage |> List.map (fun d -> if d.System = ShieldControl then { d with Amount = -1 } else d) }
             Expect.isTrue (isShieldControlDamaged damaged) "should be damaged"
 
-        testCase "transferShields valid transfer updates shields and energy" <| fun _ ->
+        testCase "transferShields sets shields to requested level" <| fun _ ->
             let ship = { (resetEnterprise { X = 1; Y = 1 } { X = 1; Y = 1 }) with Energy = 3000.0; Shields = 0.0 }
             match transferShields 500.0 ship with
             | Ok result ->
@@ -43,7 +43,23 @@ let enterpriseTests =
                 Expect.equal result.Energy 2500.0 "energy should be 2500"
             | Error msg -> failtest msg
 
-        testCase "transferShields over budget returns treasury error" <| fun _ ->
+        testCase "transferShields redistributes between shields and energy" <| fun _ ->
+            let ship = { (resetEnterprise { X = 1; Y = 1 } { X = 1; Y = 1 }) with Energy = 2000.0; Shields = 500.0 }
+            match transferShields 800.0 ship with
+            | Ok result ->
+                Expect.equal result.Shields 800.0 "shields should be set to 800"
+                Expect.equal result.Energy 1700.0 "energy should be total (2500) - 800"
+            | Error msg -> failtest msg
+
+        testCase "transferShields can lower shields returning energy" <| fun _ ->
+            let ship = { (resetEnterprise { X = 1; Y = 1 } { X = 1; Y = 1 }) with Energy = 2000.0; Shields = 500.0 }
+            match transferShields 300.0 ship with
+            | Ok result ->
+                Expect.equal result.Shields 300.0 "shields should be lowered to 300"
+                Expect.equal result.Energy 2200.0 "200 units should return to energy pool (2500 - 300)"
+            | Error msg -> failtest msg
+
+        testCase "transferShields over total energy returns treasury error" <| fun _ ->
             let ship = { (resetEnterprise { X = 1; Y = 1 } { X = 1; Y = 1 }) with Energy = 3000.0; Shields = 0.0 }
             match transferShields 4000.0 ship with
             | Error msg -> Expect.stringContains msg "NOT THE FEDERATION TREASURY" "should mention treasury"
