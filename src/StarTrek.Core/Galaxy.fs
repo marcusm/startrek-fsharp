@@ -149,6 +149,28 @@ let statusReportLines (state: GameState) : string list =
         sprintf "STARBASES LEFT     : %d" totalStarbases
     ]
 
+let torpedoDataLines (state: GameState) : string list =
+    if state.Klingons.Length = 0 then
+        ["SCIENCE OFFICER SPOCK REPORTS:"; "  'SENSORS SHOW NO ENEMY SHIPS IN THIS QUADRANT.'"]
+    else
+        let ep = state.Enterprise.Sector
+        [
+            "PHOTON TORPEDO DATA:"
+            for klingon in state.Klingons do
+                let dx = float (klingon.Sector.X - ep.X)
+                let dy = float (klingon.Sector.Y - ep.Y)
+                let distance = System.Math.Sqrt(dx * dx + dy * dy)
+                // Course system: 1=E, 2=NE, 3=N, 4=NW, 5=W, 6=SW, 7=S, 8=SE
+                // atan2(dy, dx) gives angle from +X axis (East), counterclockwise positive
+                // Courses go counterclockwise in screen coords (Y-down), so negate the angle
+                let angle = System.Math.Atan2(dy, dx)
+                let course = 1.0 - angle * 4.0 / System.Math.PI
+                // Normalize to [1, 9)
+                let course = if course < 1.0 then course + 8.0 else course
+                sprintf "  KLINGON AT SECTOR %d,%d: COURSE = %.1f  DISTANCE = %.1f"
+                    klingon.Sector.X klingon.Sector.Y course distance
+        ]
+
 let enterQuadrant (state: GameState) : GameState =
     let qx = state.Enterprise.Quadrant.X - 1
     let qy = state.Enterprise.Quadrant.Y - 1

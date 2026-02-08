@@ -169,3 +169,68 @@ let firePhotonTorpedoTests =
             let allDamaged = newState.Enterprise.Damage |> List.forall (fun d -> d.Amount <= 0)
             Expect.isTrue allDamaged "all systems should have some damage"
     ]
+
+[<Tests>]
+let torpedoDataTests =
+    testList "torpedoDataLines targeting accuracy" [
+        testCase "torpedo data courses accurately target klingons with random layout" <| fun _ ->
+            let rng = System.Random()
+            let enterprisePos = { X = 4; Y = 4 }
+
+            // Generate 3 distinct random klingon positions, not at Enterprise
+            let rec generatePositions occupied count acc =
+                if count = 0 then acc
+                else
+                    let x = rng.Next(1, 9)
+                    let y = rng.Next(1, 9)
+                    let pos = { X = x; Y = y }
+                    if Set.contains pos occupied then
+                        generatePositions occupied count acc
+                    else
+                        generatePositions (Set.add pos occupied) (count - 1) (pos :: acc)
+
+            let klingonPositions =
+                generatePositions (Set.singleton enterprisePos) 3 []
+
+            let klingons =
+                klingonPositions
+                |> List.map (fun p -> mkKlingon p.X p.Y 200.0)
+                |> List.toArray
+
+            // FixedRandom(50, _): torpedo damage = 280 + 50 = 330 > 200, so every klingon is destroyed
+            let random = FixedRandom(50, 1.0) :> IRandomService
+            let state = makeState klingons enterprisePos random
+
+            // Use computer option 2 to get torpedo data
+            let lines = torpedoDataLines state
+
+            // Parse course values from lines like "  KLINGON AT SECTOR 5,3: COURSE = 2.4  DISTANCE = 3.2"
+            let parseCourse (line: string) =
+                let m = System.Text.RegularExpressions.Regex.Match(line, @"COURSE = ([\d.]+)")
+                if m.Success then Some (float m.Groups.[1].Value)
+                else None
+
+            let courses = lines |> List.choose parseCourse
+            Expect.equal courses.Length 3
+                (sprintf "should find 3 courses in torpedo data. Lines: %A" lines)
+
+            // Fire torpedoes using computed courses, verify each hits something
+            let _, allResults =
+                courses |> List.fold (fun (st, results) course ->
+                    let direction = getCourseVector course |> Option.get
+                    let msgs, newState = firePhotonTorpedo direction st
+                    let isHit =
+                        msgs |> List.exists (fun m ->
+                            m.Contains("KLINGON DESTROYED") ||
+                            m.Contains("SENSORS SHOW") ||
+                            m.Contains("STARBASE DESTROYED") ||
+                            m.Contains("STAR ABSORBED") ||
+                            m.Contains("RADIATION"))
+                    (newState, results @ [(course, isHit, msgs)])
+                ) (state, [])
+
+            for (course, isHit, msgs) in allResults do
+                Expect.isTrue isHit
+                    (sprintf "torpedo at course %.1f should hit. Klingon positions: %A. Messages: %A"
+                        course klingonPositions msgs)
+    ]

@@ -139,7 +139,8 @@ let libraryComputer (state: GameState) =
     else
         ["COMPUTER ACTIVE AND AWAITING COMMAND"
          "  0 = CUMULATIVE GALACTIC RECORD"
-         "  1 = STATUS REPORT"], state
+         "  1 = STATUS REPORT"
+         "  2 = PHOTON TORPEDO DATA"], state
 
 let libraryComputerOption (input: string) (state: GameState) =
     match input.Trim() with
@@ -147,6 +148,8 @@ let libraryComputerOption (input: string) (state: GameState) =
         galacticRecordLines state, state
     | "1" ->
         statusReportLines state, state
+    | "2" ->
+        torpedoDataLines state, state
     | _ ->
         ["INVALID COMPUTER OPTION"], state
 
