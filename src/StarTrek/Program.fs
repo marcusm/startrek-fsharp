@@ -5,5 +5,5 @@ open StarTrek.App
 let main argv =
     let seed = System.Random().Next()
     let state = initializeGame seed
-    TerminalUI.run state
+    GameLoop.run state
     0

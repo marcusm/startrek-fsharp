@@ -23,3 +23,16 @@ let renderScanLines (state: GameState) =
        for row in 0 .. galaxySize - 1 do
            yield renderSectorRow state.CurrentQuadrant row
        yield border |]
+
+type InputMode =
+    | CommandMode
+    | WarpCourseInput
+    | WarpFactorInput of course: float
+    | ShieldEnergyInput
+
+let promptText mode =
+    match mode with
+    | CommandMode -> "COMMAND? > "
+    | WarpCourseInput -> "COURSE (1-9)? > "
+    | WarpFactorInput _ -> "WARP FACTOR (0-8)? > "
+    | ShieldEnergyInput -> "NUMBER OF UNITS TO SHIELDS? > "

@@ -9,14 +9,6 @@ let scanPanelWidth = 26  // 24 content + 2 border
 let topPanelHeight = 12  // 10 content + 2 border
 let commandPanelHeight = 3
 
-type InputMode =
-    | CommandMode
-    | WarpCourseInput
-    | WarpFactorInput of course: float
-    | ShieldEnergyInput
-
-let mutable private inputMode : InputMode = CommandMode
-let mutable private gameState : GameState option = None
 let mutable private messageLog : string list = []
 // Queue of message lines waiting to be revealed page by page
 let mutable private pendingMessages : string list = []
@@ -35,6 +27,10 @@ let private messagesView = new TextView(ReadOnly = true)
 let private hintLabel = new Label(ustring.Make "")
 let private commandLabel = new Label(ustring.Make "COMMAND? > ")
 let private commandField = new TextField(ustring.Make "")
+
+// Callbacks registered by GameLoop
+let mutable private onCommandCallback : (string -> unit) option = None
+let mutable private onPagingCallback : (unit -> unit) option = None
 
 let private conditionColorScheme (condition: string) =
     let fg =
@@ -93,7 +89,7 @@ let private exitPagingMode () =
     commandLabel.Visible <- true
     commandField.SetFocus()
 
-let private advancePage () =
+let advancePage () =
     let pageSize = messagesContentHeight ()
     let linesToReveal = min pageSize (List.length pendingMessages)
     revealedCount <- revealedCount + linesToReveal
@@ -102,7 +98,11 @@ let private advancePage () =
     if pendingMessages.Length = 0 then
         exitPagingMode ()
 
-let private appendMessages (msgs: string list) =
+let refreshAll (state: GameState) =
+    refreshScan state
+    refreshStatus state
+
+let appendMessages (msgs: string list) =
     messageLog <- messageLog @ msgs
     let pageSize = messagesContentHeight ()
     if msgs.Length <= pageSize then
@@ -118,109 +118,18 @@ let private appendMessages (msgs: string list) =
         showRevealedMessages ()
         enterPagingMode ()
 
-let private refreshAll (state: GameState) =
-    refreshScan state
-    refreshStatus state
+let setPromptText (text: string) =
+    commandLabel.Text <- ustring.Make text
 
-let private updatePrompt () =
-    match inputMode with
-    | CommandMode -> commandLabel.Text <- ustring.Make "COMMAND? > "
-    | WarpCourseInput -> commandLabel.Text <- ustring.Make "COURSE (1-9)? > "
-    | WarpFactorInput _ -> commandLabel.Text <- ustring.Make "WARP FACTOR (0-8)? > "
-    | ShieldEnergyInput -> commandLabel.Text <- ustring.Make "NUMBER OF UNITS TO SHIELDS? > "
+let requestStop () = Application.RequestStop()
 
-let processCommand (input: string) (state: GameState) : string list * GameState =
-    match input.Trim().ToUpper() with
-    | "1" -> Commands.shortRangeCommand state
-    | "2" -> Commands.longRangeScan state
-    | "3" -> Commands.phaserControl state
-    | "4" -> Commands.photonTorpedoControl state
-    | "5" -> Commands.shieldControl state
-    | "6" -> Commands.damageControlReport state
-    | "7" -> Commands.libraryComputer state
-    | "HELP" -> Commands.help (), state
-    | "Q" -> Application.RequestStop(); [], state
-    | _ -> ["INVALID COMMAND. ENTER 0-7 OR HELP."], state
+let setCommandHandler (handler: string -> unit) =
+    onCommandCallback <- Some handler
 
-let private handleCommandMode (input: string) (state: GameState) =
-    match input with
-    | null | "" -> ()
-    | _ ->
-        match input.Trim().ToUpper() with
-        | "0" ->
-            let msgs = Commands.warpStart state
-            inputMode <- WarpCourseInput
-            updatePrompt ()
-            if msgs.Length > 0 then appendMessages msgs
-        | "5" ->
-            let msgs, _ = Commands.shieldControl state
-            if msgs.Length > 0 && msgs.[0] = "SHIELD CONTROL INOPERABLE" then
-                appendMessages msgs
-            else
-                inputMode <- ShieldEnergyInput
-                updatePrompt ()
-                if msgs.Length > 0 then appendMessages msgs
-        | _ ->
-            let msgs, newState = processCommand input state
-            gameState <- Some newState
-            refreshAll newState
-            if msgs.Length > 0 then appendMessages msgs
+let setPagingHandler (handler: unit -> unit) =
+    onPagingCallback <- Some handler
 
-let private handleWarpCourseInput (input: string) =
-    match input with
-    | null | "" ->
-        inputMode <- CommandMode
-        updatePrompt ()
-    | _ ->
-        match Commands.warpValidateCourse (input.Trim()) with
-        | Ok course ->
-            inputMode <- WarpFactorInput course
-            updatePrompt ()
-        | Error msg ->
-            appendMessages [msg]
-            inputMode <- CommandMode
-            updatePrompt ()
-
-let private handleWarpFactorInput (course: float) (input: string) (state: GameState) =
-    match input with
-    | null | "" ->
-        inputMode <- CommandMode
-        updatePrompt ()
-    | _ ->
-        let msgs, newState = Commands.warpValidateAndExecute course (input.Trim()) state
-        gameState <- Some newState
-        inputMode <- CommandMode
-        updatePrompt ()
-        refreshAll newState
-        if msgs.Length > 0 then appendMessages msgs
-
-let private handleShieldEnergyInput (input: string) (state: GameState) =
-    match input with
-    | null | "" ->
-        inputMode <- CommandMode
-        updatePrompt ()
-    | _ ->
-        let msgs, newState = Commands.shieldValidateAndExecute (input.Trim()) state
-        gameState <- Some newState
-        inputMode <- CommandMode
-        updatePrompt ()
-        refreshAll newState
-        if msgs.Length > 0 then appendMessages msgs
-
-let private onCommandEntered () =
-    match gameState with
-    | None -> ()
-    | Some state ->
-        let input = commandField.Text.ToString()
-        commandField.Text <- ustring.Make ""
-
-        match inputMode with
-        | CommandMode -> handleCommandMode input state
-        | WarpCourseInput -> handleWarpCourseInput input
-        | WarpFactorInput course -> handleWarpFactorInput course input state
-        | ShieldEnergyInput -> handleShieldEnergyInput input state
-
-let run (initialState: GameState) =
+let init (initialState: GameState) =
     Application.Init()
 
     let top = Application.Top
@@ -299,25 +208,32 @@ let run (initialState: GameState) =
     // Handle Enter key in command field
     commandField.add_KeyPress(fun args ->
         if args.KeyEvent.Key = Key.Enter then
-            onCommandEntered ()
+            match onCommandCallback with
+            | Some cb ->
+                let input = commandField.Text.ToString()
+                commandField.Text <- ustring.Make ""
+                cb input
+            | None -> ()
             args.Handled <- true)
 
     // Intercept any key at the root level for paging (fires before focused views)
     Application.RootKeyEvent <-
         System.Func<KeyEvent, bool>(fun _keyEvent ->
             if isPaging then
-                advancePage ()
+                match onPagingCallback with
+                | Some cb -> cb ()
+                | None -> advancePage ()
                 true  // consume the key
             else
                 false)  // let normal processing continue
 
     // Initialize state and render
-    gameState <- Some initialState
     revealedCount <- 0
     refreshAll initialState
 
     // Focus the command field after layout is realized
     top.add_Ready(fun _ -> commandField.SetFocus())
 
+let runApplication () =
     Application.Run()
     Application.Shutdown()
