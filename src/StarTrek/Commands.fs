@@ -137,12 +137,16 @@ let libraryComputer (state: GameState) =
     if isComputerDamaged state.Enterprise then
         ["COMPUTER DISABLED"], state
     else
-        ["COMPUTER ACTIVE AND AWAITING COMMAND"; "  0 = CUMULATIVE GALACTIC RECORD"], state
+        ["COMPUTER ACTIVE AND AWAITING COMMAND"
+         "  0 = CUMULATIVE GALACTIC RECORD"
+         "  1 = STATUS REPORT"], state
 
 let libraryComputerOption (input: string) (state: GameState) =
     match input.Trim() with
     | "0" ->
         galacticRecordLines state, state
+    | "1" ->
+        statusReportLines state, state
     | _ ->
         ["INVALID COMPUTER OPTION"], state
 

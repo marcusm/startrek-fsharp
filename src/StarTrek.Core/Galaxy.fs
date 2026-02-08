@@ -131,6 +131,24 @@ let galacticRecordLines (state: GameState) : string list =
             separator
     ]
 
+let statusReportLines (state: GameState) : string list =
+    let totalKlingons =
+        state.Quadrants
+        |> Seq.cast<Quadrant>
+        |> Seq.sumBy (fun q -> q.Klingons)
+    let totalStarbases =
+        state.Quadrants
+        |> Seq.cast<Quadrant>
+        |> Seq.sumBy (fun q -> q.Starbases)
+    let stardatesLeft =
+        state.Stardate.Turns - (state.Stardate.Current - state.Stardate.Start)
+    [
+        "   STATUS REPORT"
+        sprintf "KLINGON SHIPS LEFT : %d" totalKlingons
+        sprintf "STARDATES LEFT     : %d" stardatesLeft
+        sprintf "STARBASES LEFT     : %d" totalStarbases
+    ]
+
 let enterQuadrant (state: GameState) : GameState =
     let qx = state.Enterprise.Quadrant.X - 1
     let qy = state.Enterprise.Quadrant.Y - 1

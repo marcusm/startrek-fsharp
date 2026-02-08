@@ -2,6 +2,7 @@ module StarTrek.App.GameLoop
 
 open StarTrek.GameTypes
 open StarTrek.Enterprise
+open StarTrek.Galaxy
 open StarTrek.App
 open StarTrek.App.Display
 
@@ -18,7 +19,10 @@ let processCommand (input: string) (state: GameState) : string list * GameState 
     | "6" -> Commands.damageControlReport state
     | "7" -> [], state // handled in handleCommandMode
     | "HELP" -> Commands.help (), state
-    | "Q" -> TerminalUI.requestStop(); [], state
+    | "Q" ->
+        let endReport = statusReportLines state
+        TerminalUI.requestStop()
+        endReport, state
     | _ -> ["INVALID COMMAND. ENTER 0-7 OR HELP."], state
 
 let private updatePrompt () =
@@ -28,7 +32,8 @@ let private executeWithKlingonAttack (state: GameState) (action: GameState -> st
     let attackMsgs, stateAfterAttack = klingonAttack state
     match condition stateAfterAttack.Enterprise with
     | Destroyed ->
-        let msgs = attackMsgs @ ["THE ENTERPRISE HAS BEEN DESTROYED. THE FEDERATION WILL BE CONQUERED."]
+        let endReport = statusReportLines stateAfterAttack
+        let msgs = attackMsgs @ ["THE ENTERPRISE HAS BEEN DESTROYED. THE FEDERATION WILL BE CONQUERED."] @ endReport
         TerminalUI.requestStop ()
         msgs, stateAfterAttack
     | _ ->
@@ -184,4 +189,6 @@ let run (initialState: GameState) =
     TerminalUI.init initialState
     TerminalUI.setCommandHandler onCommandEntered
     TerminalUI.setPagingHandler TerminalUI.advancePage
+    let startReport = statusReportLines initialState
+    TerminalUI.appendMessages startReport
     TerminalUI.runApplication ()
