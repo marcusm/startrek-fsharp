@@ -30,6 +30,7 @@ let private makeStateWithShields (klingons: Klingon array) enterpriseSector shie
       CurrentQuadrant = sectorMap
       Quadrants = quadrants
       Stardate = { Current = 2500; Start = 2500; Turns = 30 }
+      QuadrantsScanned = Set.empty
       Random = FixedRandom(1.0) :> IRandomService }
 
 let private makeState (klingons: Klingon array) enterpriseSector =
@@ -48,6 +49,7 @@ let private makeState (klingons: Klingon array) enterpriseSector =
       CurrentQuadrant = sectorMap
       Quadrants = quadrants
       Stardate = { Current = 2500; Start = 2500; Turns = 30 }
+      QuadrantsScanned = Set.empty
       Random = FixedRandom(1.0) :> IRandomService }
 
 [<Tests>]

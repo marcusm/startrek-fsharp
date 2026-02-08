@@ -64,7 +64,8 @@ let longRangeScan (state: GameState) =
     if isLongRangeScannersDamaged state.Enterprise then
         ["LONG RANGE SENSORS ARE INOPERABLE"], state
     else
-        longRangeScanLines state, state
+        let lines, scanned = longRangeScan state
+        lines, { state with QuadrantsScanned = scanned }
 
 let phaserStart (state: GameState) : string list * bool =
     if isPhasersDamaged state.Enterprise then
@@ -133,7 +134,17 @@ let damageControlReport (state: GameState) =
         header @ lines, state
 
 let libraryComputer (state: GameState) =
-    ["LIBRARY COMPUTER -- NOT YET IMPLEMENTED"], state
+    if isComputerDamaged state.Enterprise then
+        ["COMPUTER DISABLED"], state
+    else
+        ["COMPUTER ACTIVE AND AWAITING COMMAND"; "  0 = CUMULATIVE GALACTIC RECORD"], state
+
+let libraryComputerOption (input: string) (state: GameState) =
+    match input.Trim() with
+    | "0" ->
+        galacticRecordLines state, state
+    | _ ->
+        ["INVALID COMPUTER OPTION"], state
 
 let help () : string list =
     let path = System.IO.Path.Combine("doc", "help.txt")

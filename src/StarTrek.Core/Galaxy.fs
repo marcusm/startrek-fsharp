@@ -51,32 +51,46 @@ let getCourseVector (course: float) =
         let dy = dy1 + frac * (dy2 - dy1)
         Some (dx, dy)
 
+let private formatRow (cells: string list) =
+    cells |> String.concat " : " |> sprintf ": %s :"
+
 let isLongRangeScannersDamaged (enterprise: Enterprise) : bool =
     enterprise.Damage
     |> List.exists (fun d -> d.System = LongRangeSensors && d.Amount < 0)
 
-let longRangeScanLines (state: GameState) : string list =
+let longRangeScan (state: GameState) : string list * Set<Position> =
     let qx = state.Enterprise.Quadrant.X
     let qy = state.Enterprise.Quadrant.Y
     let separator = "-------------------"
     let header = sprintf "LONG RANGE SCAN FOR QUADRANT %d,%d" qx qy
-    [
-        yield header
-        yield separator
-        for dy in -1 .. 1 do
-            let cells =
-                [ for dx in -1 .. 1 do
-                    let nx = qx + dx
-                    let ny = qy + dy
-                    let pos = { X = nx; Y = ny }
-                    if isValidPosition pos then
-                        let q = state.Quadrants.[nx - 1, ny - 1]
-                        sprintf "%03d" (encodeQuadrant q)
-                    else
-                        "***" ]
-            yield sprintf ": %s : %s : %s :" cells.[0] cells.[1] cells.[2]
-            yield separator
-    ]
+    let neighbors =
+        [ for dy in -1 .. 1 do
+            for dx in -1 .. 1 do
+                { X = qx + dx; Y = qy + dy } ]
+
+    let scanned =
+        neighbors
+        |> List.filter isValidPosition
+        |> Set.ofList
+        |> Set.union state.QuadrantsScanned
+
+    let lines =
+        [
+            header
+            separator
+            for dy in -1 .. 1 do
+                let cells =
+                    [ for dx in -1 .. 1 do
+                        let pos = { X = qx + dx; Y = qy + dy }
+                        if isValidPosition pos then
+                            let q = state.Quadrants.[pos.X - 1, pos.Y - 1]
+                            sprintf "%03d" (encodeQuadrant q)
+                        else
+                            "***" ]
+                formatRow cells
+                separator
+        ]
+    lines, scanned
 
 let warpEnergyCost (warpFactor: float) : int =
     int (warpFactor * 8.0 + 0.5) + 10
@@ -98,6 +112,24 @@ let private placeRandomItems (random: IRandomService) (count: int) (occupied: Se
     ||> List.fold (fun (placed, occ) _ ->
         let pos = findEmptyPosition random occ
         (pos :: placed, Set.add pos occ))
+
+let galacticRecordLines (state: GameState) : string list =
+    let separator = "-------------------------------------------------"
+    [
+        "        CUMULATIVE GALACTIC RECORD"
+        separator
+        for y in 0 .. galaxySize - 1 do
+            let cells =
+                [ for x in 0 .. galaxySize - 1 do
+                    let pos = { X = x + 1; Y = y + 1 }
+                    if Set.contains pos state.QuadrantsScanned then
+                        let q = state.Quadrants.[x, y]
+                        sprintf "%03d" (encodeQuadrant q)
+                    else
+                        "???" ]
+            formatRow cells
+            separator
+    ]
 
 let enterQuadrant (state: GameState) : GameState =
     let qx = state.Enterprise.Quadrant.X - 1
@@ -131,7 +163,8 @@ let enterQuadrant (state: GameState) : GameState =
             | Some sector -> sector
             | None -> Empty)
 
-    { state with CurrentQuadrant = sectorMap; Klingons = klingons }
+    let scanned = Set.add state.Enterprise.Quadrant state.QuadrantsScanned
+    { state with CurrentQuadrant = sectorMap; Klingons = klingons; QuadrantsScanned = scanned }
 
 let executeWarp (direction: float * float) (warpFactor: float) (state: GameState) : string list * GameState =
     let numSteps = int (warpFactor * 8.0 + 0.5)
@@ -263,6 +296,7 @@ let rec private tryGenerateGame (random: IRandomService) : GameState =
             { Current = startDate
               Start = startDate
               Turns = turns }
+          QuadrantsScanned = Set.empty
           Random = random }
 
 let initializeGame (seed: int) : GameState =

@@ -90,6 +90,7 @@ type GameState = {
     CurrentQuadrant: Sector [,]
     Quadrants: Quadrant [,]
     Stardate: Stardate
+    QuadrantsScanned: Set<Position>
     Random: IRandomService
 }
 

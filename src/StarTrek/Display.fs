@@ -31,6 +31,7 @@ type InputMode =
     | ShieldEnergyInput
     | PhaserEnergyInput
     | TorpedoCourseInput
+    | ComputerOptionInput
 
 let promptText mode =
     match mode with
@@ -40,3 +41,4 @@ let promptText mode =
     | ShieldEnergyInput -> "NUMBER OF UNITS TO SHIELDS? > "
     | PhaserEnergyInput -> "UNITS TO FIRE? > "
     | TorpedoCourseInput -> "TORPEDO COURSE (1-9)? > "
+    | ComputerOptionInput -> "COMPUTER OPTION? > "

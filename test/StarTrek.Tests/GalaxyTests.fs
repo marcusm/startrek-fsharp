@@ -215,14 +215,14 @@ let longRangeScanTests =
     testList "longRangeScan" [
         testCase "header contains enterprise quadrant" <| fun _ ->
             let state = initializeGame 42
-            let lines = longRangeScanLines state
+            let lines, _ = longRangeScan state
             let qx = state.Enterprise.Quadrant.X
             let qy = state.Enterprise.Quadrant.Y
             Expect.equal lines.[0] (sprintf "LONG RANGE SCAN FOR QUADRANT %d,%d" qx qy) "header should show quadrant"
 
         testCase "output has correct structure" <| fun _ ->
             let state = initializeGame 42
-            let lines = longRangeScanLines state
+            let lines, _ = longRangeScan state
             // header + (separator + data row) * 3 + trailing separator = 1 + 3*2 + 1 = 8 but
             // actually: header, sep, row, sep, row, sep, row, sep = 8 lines
             Expect.equal lines.Length 8 "should have 8 lines (header + 3 data rows with separators)"
@@ -233,7 +233,7 @@ let longRangeScanTests =
 
         testCase "center cell matches enterprise quadrant encoding" <| fun _ ->
             let state = initializeGame 42
-            let lines = longRangeScanLines state
+            let lines, _ = longRangeScan state
             let qx = state.Enterprise.Quadrant.X - 1
             let qy = state.Enterprise.Quadrant.Y - 1
             let expected = encodeQuadrant state.Quadrants.[qx, qy]
@@ -244,7 +244,7 @@ let longRangeScanTests =
             let state = initializeGame 42
             let cornerState =
                 { state with Enterprise = { state.Enterprise with Quadrant = { X = 1; Y = 1 } } }
-            let lines = longRangeScanLines cornerState
+            let lines, _ = longRangeScan cornerState
             // Top-left corner: row 0 should have *** for all out-of-bounds
             Expect.stringContains lines.[2] "***" "top row should have out-of-bounds marker"
             // First data row (dy=-1): all three cells have Y=0 which is out of bounds
@@ -255,11 +255,19 @@ let longRangeScanTests =
             let state = initializeGame 42
             let edgeState =
                 { state with Enterprise = { state.Enterprise with Quadrant = { X = 1; Y = 4 } } }
-            let lines = longRangeScanLines edgeState
+            let lines, _ = longRangeScan edgeState
             // X=1 means dx=-1 gives X=0 (out of bounds), dx=0 and dx=1 are valid
             // Each data row should start with *** then two valid entries
             for rowIdx in [2; 4; 6] do
                 Expect.stringContains lines.[rowIdx] "***" $"row {rowIdx} should have out-of-bounds on left"
+
+        testCase "long range scan updates quadrantsScanned" <| fun _ ->
+            let state = initializeGame 42
+            let _, scanned = longRangeScan state
+            let qx = state.Enterprise.Quadrant.X
+            let qy = state.Enterprise.Quadrant.Y
+            // The enterprise quadrant itself should be scanned
+            Expect.isTrue (Set.contains { X = qx; Y = qy } scanned) "enterprise quadrant should be scanned"
 
         testCase "isLongRangeScannersDamaged returns false when undamaged" <| fun _ ->
             let state = initializeGame 42

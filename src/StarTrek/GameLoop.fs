@@ -16,7 +16,7 @@ let processCommand (input: string) (state: GameState) : string list * GameState 
     | "4" -> [], state // handled in handleCommandMode
     | "5" -> Commands.shieldControl state
     | "6" -> Commands.damageControlReport state
-    | "7" -> Commands.libraryComputer state
+    | "7" -> [], state // handled in handleCommandMode
     | "HELP" -> Commands.help (), state
     | "Q" -> TerminalUI.requestStop(); [], state
     | _ -> ["INVALID COMMAND. ENTER 0-7 OR HELP."], state
@@ -63,6 +63,15 @@ let private handleCommandMode (input: string) (state: GameState) =
                 TerminalUI.appendMessages msgs
             else
                 inputMode <- ShieldEnergyInput
+                updatePrompt ()
+                if msgs.Length > 0 then TerminalUI.appendMessages msgs
+        | "7" ->
+            let msgs, newState = Commands.libraryComputer state
+            gameState <- Some newState
+            if msgs.Length > 0 && msgs.[0] = "COMPUTER DISABLED" then
+                TerminalUI.appendMessages msgs
+            else
+                inputMode <- ComputerOptionInput
                 updatePrompt ()
                 if msgs.Length > 0 then TerminalUI.appendMessages msgs
         | _ ->
@@ -144,6 +153,19 @@ let private handleTorpedoCourseInput (input: string) (state: GameState) =
         TerminalUI.refreshAll newState
         if msgs.Length > 0 then TerminalUI.appendMessages msgs
 
+let private handleComputerOptionInput (input: string) (state: GameState) =
+    match input with
+    | null | "" ->
+        inputMode <- CommandMode
+        updatePrompt ()
+    | _ ->
+        let msgs, newState = Commands.libraryComputerOption (input.Trim()) state
+        gameState <- Some newState
+        inputMode <- CommandMode
+        updatePrompt ()
+        TerminalUI.refreshAll newState
+        if msgs.Length > 0 then TerminalUI.appendMessages msgs
+
 let private onCommandEntered (input: string) =
     match gameState with
     | None -> ()
@@ -155,6 +177,7 @@ let private onCommandEntered (input: string) =
         | ShieldEnergyInput -> handleShieldEnergyInput input state
         | PhaserEnergyInput -> handlePhaserEnergyInput input state
         | TorpedoCourseInput -> handleTorpedoCourseInput input state
+        | ComputerOptionInput -> handleComputerOptionInput input state
 
 let run (initialState: GameState) =
     gameState <- Some initialState
