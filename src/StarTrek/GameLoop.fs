@@ -1,6 +1,7 @@
 module StarTrek.App.GameLoop
 
 open StarTrek.GameTypes
+open StarTrek.Enterprise
 open StarTrek.App
 open StarTrek.App.Display
 
@@ -22,6 +23,17 @@ let processCommand (input: string) (state: GameState) : string list * GameState 
 
 let private updatePrompt () =
     TerminalUI.setPromptText (promptText inputMode)
+
+let private executeWithKlingonAttack (state: GameState) (action: GameState -> string list * GameState) : string list * GameState =
+    let attackMsgs, stateAfterAttack = klingonAttack state
+    match condition stateAfterAttack.Enterprise with
+    | Destroyed ->
+        let msgs = attackMsgs @ ["THE ENTERPRISE HAS BEEN DESTROYED. THE FEDERATION WILL BE CONQUERED."]
+        TerminalUI.requestStop ()
+        msgs, stateAfterAttack
+    | _ ->
+        let actionMsgs, finalState = action stateAfterAttack
+        attackMsgs @ actionMsgs, finalState
 
 let private handleCommandMode (input: string) (state: GameState) =
     match input with
@@ -74,7 +86,9 @@ let private handleWarpFactorInput (course: float) (input: string) (state: GameSt
         inputMode <- CommandMode
         updatePrompt ()
     | _ ->
-        let msgs, newState = Commands.warpValidateAndExecute course (input.Trim()) state
+        let msgs, newState =
+            executeWithKlingonAttack state (fun s ->
+                Commands.warpValidateAndExecute course (input.Trim()) s)
         gameState <- Some newState
         inputMode <- CommandMode
         updatePrompt ()
@@ -100,7 +114,9 @@ let private handlePhaserEnergyInput (input: string) (state: GameState) =
         inputMode <- CommandMode
         updatePrompt ()
     | _ ->
-        let msgs, newState = Commands.phaserValidateAndExecute (input.Trim()) state
+        let msgs, newState =
+            executeWithKlingonAttack state (fun s ->
+                Commands.phaserValidateAndExecute (input.Trim()) s)
         gameState <- Some newState
         inputMode <- CommandMode
         updatePrompt ()

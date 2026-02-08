@@ -28,6 +28,35 @@ let getPhaserRepairTime (enterprise: Enterprise) : int =
     |> Option.map (fun d -> abs d.Amount)
     |> Option.defaultValue 0
 
+let calculatePhaserDamage (from: Position) (target: Position) (blastEnergy: float) : float =
+    let dx = target.X - from.X
+    let dy = target.Y - from.Y
+    blastEnergy * 30.0 / (30.0 + float (dx * dx + dy * dy) + 1.0)
+
+let condition (enterprise: Enterprise) : ShipCondition =
+    match enterprise.Shields, enterprise.Energy with
+    | (s, _) when s < 0.0 -> Destroyed
+    | (s, e) when s > 0.0 && s < 1.1 && e = 0.0 -> DeadInSpace
+    | _ -> Operational
+
+let klingonAttack (state: GameState) : string list * GameState =
+    if state.Klingons.Length = 0 then
+        [], state
+    else
+        let folder (msgs, enterprise: Enterprise) (klingon: Klingon) =
+            let blastEnergy = klingon.Energy * 2.0
+            let damage = calculatePhaserDamage enterprise.Sector klingon.Sector blastEnergy
+            let newShields = enterprise.Shields - damage
+            let newEnterprise = { enterprise with Shields = newShields }
+            let hitMsg = sprintf "%3.1f UNIT HIT ON ENTERPRISE FROM SECTOR %d,%d   (%3.1f LEFT)" damage klingon.Sector.X klingon.Sector.Y newShields
+            (msgs @ [hitMsg], newEnterprise)
+
+        let allMsgs, finalEnterprise =
+            state.Klingons
+            |> Array.fold folder ([], state.Enterprise)
+
+        allMsgs, { state with Enterprise = finalEnterprise }
+
 let firePhasers (blastEnergy: float) (state: GameState) : string list * GameState =
     let enterprise = state.Enterprise
     let newEnterprise = { enterprise with Energy = enterprise.Energy - blastEnergy }
@@ -42,9 +71,7 @@ let firePhasers (blastEnergy: float) (state: GameState) : string list * GameStat
     let computerDamaged = isComputerDamaged enterprise
 
     let folder (msgs, klingons, sectorMap, quadrants: Quadrant[,]) (klingon: Klingon) =
-        let dx = klingon.Sector.X - enterprise.Sector.X
-        let dy = klingon.Sector.Y - enterprise.Sector.Y
-        let baseDamage = perKlingon * 30.0 / (30.0 + float (dx * dx + dy * dy) + 1.0)
+        let baseDamage = calculatePhaserDamage enterprise.Sector klingon.Sector perKlingon
         let damage =
             if computerDamaged then baseDamage * state.Random.NextDouble()
             else baseDamage
