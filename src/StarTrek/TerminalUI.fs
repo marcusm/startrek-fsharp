@@ -13,6 +13,7 @@ type InputMode =
     | CommandMode
     | WarpCourseInput
     | WarpFactorInput of course: float
+    | ShieldEnergyInput
 
 let mutable private inputMode : InputMode = CommandMode
 let mutable private gameState : GameState option = None
@@ -126,6 +127,7 @@ let private updatePrompt () =
     | CommandMode -> commandLabel.Text <- ustring.Make "COMMAND? > "
     | WarpCourseInput -> commandLabel.Text <- ustring.Make "COURSE (1-9)? > "
     | WarpFactorInput _ -> commandLabel.Text <- ustring.Make "WARP FACTOR (0-8)? > "
+    | ShieldEnergyInput -> commandLabel.Text <- ustring.Make "NUMBER OF UNITS TO SHIELDS? > "
 
 let processCommand (input: string) (state: GameState) : string list * GameState =
     match input.Trim().ToUpper() with
@@ -140,6 +142,71 @@ let processCommand (input: string) (state: GameState) : string list * GameState 
     | "Q" -> Application.RequestStop(); [], state
     | _ -> ["INVALID COMMAND. ENTER 0-7 OR HELP."], state
 
+let private handleCommandMode (input: string) (state: GameState) =
+    match input with
+    | null | "" -> ()
+    | _ ->
+        match input.Trim().ToUpper() with
+        | "0" ->
+            let msgs = Commands.warpStart state
+            inputMode <- WarpCourseInput
+            updatePrompt ()
+            if msgs.Length > 0 then appendMessages msgs
+        | "5" ->
+            let msgs, _ = Commands.shieldControl state
+            if msgs.Length > 0 && msgs.[0] = "SHIELD CONTROL INOPERABLE" then
+                appendMessages msgs
+            else
+                inputMode <- ShieldEnergyInput
+                updatePrompt ()
+                if msgs.Length > 0 then appendMessages msgs
+        | _ ->
+            let msgs, newState = processCommand input state
+            gameState <- Some newState
+            refreshAll newState
+            if msgs.Length > 0 then appendMessages msgs
+
+let private handleWarpCourseInput (input: string) =
+    match input with
+    | null | "" ->
+        inputMode <- CommandMode
+        updatePrompt ()
+    | _ ->
+        match Commands.warpValidateCourse (input.Trim()) with
+        | Ok course ->
+            inputMode <- WarpFactorInput course
+            updatePrompt ()
+        | Error msg ->
+            appendMessages [msg]
+            inputMode <- CommandMode
+            updatePrompt ()
+
+let private handleWarpFactorInput (course: float) (input: string) (state: GameState) =
+    match input with
+    | null | "" ->
+        inputMode <- CommandMode
+        updatePrompt ()
+    | _ ->
+        let msgs, newState = Commands.warpValidateAndExecute course (input.Trim()) state
+        gameState <- Some newState
+        inputMode <- CommandMode
+        updatePrompt ()
+        refreshAll newState
+        if msgs.Length > 0 then appendMessages msgs
+
+let private handleShieldEnergyInput (input: string) (state: GameState) =
+    match input with
+    | null | "" ->
+        inputMode <- CommandMode
+        updatePrompt ()
+    | _ ->
+        let msgs, newState = Commands.shieldValidateAndExecute (input.Trim()) state
+        gameState <- Some newState
+        inputMode <- CommandMode
+        updatePrompt ()
+        refreshAll newState
+        if msgs.Length > 0 then appendMessages msgs
+
 let private onCommandEntered () =
     match gameState with
     | None -> ()
@@ -148,43 +215,10 @@ let private onCommandEntered () =
         commandField.Text <- ustring.Make ""
 
         match inputMode with
-        | CommandMode ->
-            if input <> null && input.Trim().ToUpper() = "0" then
-                let msgs = Commands.warpStart state
-                inputMode <- WarpCourseInput
-                updatePrompt ()
-                if msgs.Length > 0 then appendMessages msgs
-            elif input <> null && input.Length > 0 then
-                let msgs, newState = processCommand input state
-                gameState <- Some newState
-                refreshAll newState
-                if msgs.Length > 0 then appendMessages msgs
-
-        | WarpCourseInput ->
-            if input = null || input.Trim().Length = 0 then
-                inputMode <- CommandMode
-                updatePrompt ()
-            else
-                match Commands.warpValidateCourse (input.Trim()) with
-                | Ok course ->
-                    inputMode <- WarpFactorInput course
-                    updatePrompt ()
-                | Error msg ->
-                    appendMessages [msg]
-                    inputMode <- CommandMode
-                    updatePrompt ()
-
-        | WarpFactorInput course ->
-            if input = null || input.Trim().Length = 0 then
-                inputMode <- CommandMode
-                updatePrompt ()
-            else
-                let msgs, newState = Commands.warpValidateAndExecute course (input.Trim()) state
-                gameState <- Some newState
-                inputMode <- CommandMode
-                updatePrompt ()
-                refreshAll newState
-                if msgs.Length > 0 then appendMessages msgs
+        | CommandMode -> handleCommandMode input state
+        | WarpCourseInput -> handleWarpCourseInput input
+        | WarpFactorInput course -> handleWarpFactorInput course input state
+        | ShieldEnergyInput -> handleShieldEnergyInput input state
 
 let run (initialState: GameState) =
     Application.Init()

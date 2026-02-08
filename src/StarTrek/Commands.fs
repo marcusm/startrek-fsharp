@@ -2,6 +2,7 @@ module StarTrek.App.Commands
 
 open StarTrek.GameTypes
 open StarTrek.Galaxy
+open StarTrek.Enterprise
 
 let warpEngineControl (state: GameState) =
     ["WARP ENGINE CONTROL -- NOT YET IMPLEMENTED"], state
@@ -72,7 +73,23 @@ let photonTorpedoControl (state: GameState) =
     ["PHOTON TORPEDO CONTROL -- NOT YET IMPLEMENTED"], state
 
 let shieldControl (state: GameState) =
-    ["SHIELD CONTROL -- NOT YET IMPLEMENTED"], state
+    if isShieldControlDamaged state.Enterprise then
+        ["SHIELD CONTROL INOPERABLE"], state
+    else
+        let total = state.Enterprise.Energy + state.Enterprise.Shields
+        [sprintf "ENERGY AVAILABLE = %g. NUMBER OF UNITS TO SHIELDS?" total], state
+
+let shieldValidateAndExecute (input: string) (state: GameState) : string list * GameState =
+    match System.Double.TryParse(input) with
+    | true, requested ->
+        match transferShields requested state.Enterprise with
+        | Ok newEnterprise ->
+            let newState = { state with Enterprise = newEnterprise }
+            [sprintf "DEFLECTOR CONTROL ROOM REPORT:"; sprintf "  'SHIELDS NOW AT %g UNITS PER YOUR COMMAND.'" newEnterprise.Shields], newState
+        | Error msg ->
+            msg.Split('\n') |> Array.toList, state
+    | false, _ ->
+        ["INVALID. SHIELDS UNCHANGED"], state
 
 let damageControlReport (state: GameState) =
     ["DAMAGE CONTROL REPORT -- NOT YET IMPLEMENTED"], state

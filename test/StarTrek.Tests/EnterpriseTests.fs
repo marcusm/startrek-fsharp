@@ -25,4 +25,41 @@ let enterpriseTests =
             Expect.equal ship.Damage.Length 8 "should have 8 damage entries"
             for d in ship.Damage do
                 Expect.equal d.Amount 0 $"damage for {d.System} should be 0"
+
+        testCase "isShieldControlDamaged returns false when undamaged" <| fun _ ->
+            let ship = resetEnterprise { X = 1; Y = 1 } { X = 1; Y = 1 }
+            Expect.isFalse (isShieldControlDamaged ship) "should not be damaged"
+
+        testCase "isShieldControlDamaged returns true when damaged" <| fun _ ->
+            let ship = resetEnterprise { X = 1; Y = 1 } { X = 1; Y = 1 }
+            let damaged = { ship with Damage = ship.Damage |> List.map (fun d -> if d.System = ShieldControl then { d with Amount = -1 } else d) }
+            Expect.isTrue (isShieldControlDamaged damaged) "should be damaged"
+
+        testCase "transferShields valid transfer updates shields and energy" <| fun _ ->
+            let ship = { (resetEnterprise { X = 1; Y = 1 } { X = 1; Y = 1 }) with Energy = 3000.0; Shields = 0.0 }
+            match transferShields 500.0 ship with
+            | Ok result ->
+                Expect.equal result.Shields 500.0 "shields should be 500"
+                Expect.equal result.Energy 2500.0 "energy should be 2500"
+            | Error msg -> failtest msg
+
+        testCase "transferShields over budget returns treasury error" <| fun _ ->
+            let ship = { (resetEnterprise { X = 1; Y = 1 } { X = 1; Y = 1 }) with Energy = 3000.0; Shields = 0.0 }
+            match transferShields 4000.0 ship with
+            | Error msg -> Expect.stringContains msg "NOT THE FEDERATION TREASURY" "should mention treasury"
+            | Ok _ -> failtest "should have returned error"
+
+        testCase "transferShields negative returns invalid error" <| fun _ ->
+            let ship = resetEnterprise { X = 1; Y = 1 } { X = 1; Y = 1 }
+            match transferShields -100.0 ship with
+            | Error msg -> Expect.stringContains msg "INVALID" "should say invalid"
+            | Ok _ -> failtest "should have returned error"
+
+        testCase "transferShields equal to total energy sets energy to zero" <| fun _ ->
+            let ship = { (resetEnterprise { X = 1; Y = 1 } { X = 1; Y = 1 }) with Energy = 2000.0; Shields = 1000.0 }
+            match transferShields 3000.0 ship with
+            | Ok result ->
+                Expect.equal result.Shields 3000.0 "shields should be 3000"
+                Expect.equal result.Energy 0.0 "energy should be 0"
+            | Error msg -> failtest msg
     ]
