@@ -411,7 +411,7 @@ let private generateStarbaseCount (random: IRandomService) =
     if random.NextDouble() < 0.04 then 1 else 0
 
 let private generateStarCount (random: IRandomService) =
-    random.Next(4, 7)
+    int (floor (random.NextDouble() * 8.0 + 1.0))
 
 let private placeEnterprise (random: IRandomService) =
     let quadrant = { X = random.Next(1, 9); Y = random.Next(1, 9) }

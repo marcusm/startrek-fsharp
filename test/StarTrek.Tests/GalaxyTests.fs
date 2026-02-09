@@ -93,12 +93,12 @@ let initializationTests =
             Expect.isGreaterThanOrEqual state.Stardate.Start 2000 "start >= 2000"
             Expect.isLessThanOrEqual state.Stardate.Start 3999 "start <= 3999"
 
-        testCase "all quadrants have 4-6 stars" <| fun _ ->
+        testCase "all quadrants have 1-8 stars" <| fun _ ->
             let state = initializeGame 42
             state.Quadrants
             |> Array2D.iter (fun q ->
-                Expect.isGreaterThanOrEqual q.Stars 4 $"quadrant {q.Quadrant} stars >= 4"
-                Expect.isLessThanOrEqual q.Stars 6 $"quadrant {q.Quadrant} stars <= 6")
+                Expect.isGreaterThanOrEqual q.Stars 1 $"quadrant {q.Quadrant} stars >= 1"
+                Expect.isLessThanOrEqual q.Stars 8 $"quadrant {q.Quadrant} stars <= 8")
 
         testCase "all quadrants have 0-3 klingons" <| fun _ ->
             let state = initializeGame 42
