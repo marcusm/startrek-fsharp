@@ -246,6 +246,68 @@ let enterQuadrantTests =
     ]
 
 [<Tests>]
+let redAlertOnEntryTests =
+    testList "redAlertMessages" [
+        testCase "red alert when entering quadrant with Klingons and low shields" <| fun _ ->
+            let state = initializeGame 42
+            let enterprise = { StarTrek.Enterprise.resetEnterprise { X = 4; Y = 4 } { X = 4; Y = 4 } with Shields = 100.0 }
+            let quadrants = Array2D.init 8 8 (fun x y ->
+                { Quadrant = { X = x + 1; Y = y + 1 }; Klingons = 0; Starbases = 0; Stars = 1 })
+            quadrants.[3, 3] <- { quadrants.[3, 3] with Klingons = 2 }
+            let fixedState =
+                { state with
+                    Enterprise = enterprise
+                    Quadrants = quadrants
+                    CurrentQuadrant = Array2D.create 8 8 Empty }
+            let msgs, _ = enterQuadrant fixedState
+            Expect.contains msgs "COMBAT AREA      CONDITION RED" "should show red alert"
+            Expect.contains msgs "   SHIELDS DANGEROUSLY LOW" "should warn about low shields"
+
+        testCase "red alert at exactly 200 shields" <| fun _ ->
+            let state = initializeGame 42
+            let enterprise = { StarTrek.Enterprise.resetEnterprise { X = 4; Y = 4 } { X = 4; Y = 4 } with Shields = 200.0 }
+            let quadrants = Array2D.init 8 8 (fun x y ->
+                { Quadrant = { X = x + 1; Y = y + 1 }; Klingons = 0; Starbases = 0; Stars = 1 })
+            quadrants.[3, 3] <- { quadrants.[3, 3] with Klingons = 1 }
+            let fixedState =
+                { state with
+                    Enterprise = enterprise
+                    Quadrants = quadrants
+                    CurrentQuadrant = Array2D.create 8 8 Empty }
+            let msgs, _ = enterQuadrant fixedState
+            Expect.contains msgs "COMBAT AREA      CONDITION RED" "should show red alert at exactly 200"
+
+        testCase "no red alert when shields above 200" <| fun _ ->
+            let state = initializeGame 42
+            let enterprise = { StarTrek.Enterprise.resetEnterprise { X = 4; Y = 4 } { X = 4; Y = 4 } with Shields = 300.0 }
+            let quadrants = Array2D.init 8 8 (fun x y ->
+                { Quadrant = { X = x + 1; Y = y + 1 }; Klingons = 0; Starbases = 0; Stars = 1 })
+            quadrants.[3, 3] <- { quadrants.[3, 3] with Klingons = 1 }
+            let fixedState =
+                { state with
+                    Enterprise = enterprise
+                    Quadrants = quadrants
+                    CurrentQuadrant = Array2D.create 8 8 Empty }
+            let msgs, _ = enterQuadrant fixedState
+            let hasAlert = msgs |> List.exists (fun m -> m = "COMBAT AREA      CONDITION RED")
+            Expect.isFalse hasAlert "should not show red alert when shields > 200"
+
+        testCase "no red alert when no Klingons" <| fun _ ->
+            let state = initializeGame 42
+            let enterprise = { StarTrek.Enterprise.resetEnterprise { X = 4; Y = 4 } { X = 4; Y = 4 } with Shields = 50.0 }
+            let quadrants = Array2D.init 8 8 (fun x y ->
+                { Quadrant = { X = x + 1; Y = y + 1 }; Klingons = 0; Starbases = 0; Stars = 1 })
+            let fixedState =
+                { state with
+                    Enterprise = enterprise
+                    Quadrants = quadrants
+                    CurrentQuadrant = Array2D.create 8 8 Empty }
+            let msgs, _ = enterQuadrant fixedState
+            let hasAlert = msgs |> List.exists (fun m -> m = "COMBAT AREA      CONDITION RED")
+            Expect.isFalse hasAlert "should not show red alert without Klingons"
+    ]
+
+[<Tests>]
 let longRangeScanTests =
     testList "longRangeScan" [
         testCase "header contains enterprise quadrant" <| fun _ ->

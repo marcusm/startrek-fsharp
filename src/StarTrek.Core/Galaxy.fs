@@ -256,6 +256,14 @@ let checkDocking (state: GameState) : string list * GameState =
     else
         [], state
 
+/// §4.3 Red Alert on Entry: warn when entering a quadrant with Klingons and low shields
+let redAlertMessages (state: GameState) : string list =
+    if state.Klingons.Length > 0 && state.Enterprise.Shields <= 200.0 then
+        ["COMBAT AREA      CONDITION RED"
+         "   SHIELDS DANGEROUSLY LOW"]
+    else
+        []
+
 let private placeQuadrantEntities (random: IRandomService) (enterprisePos: Position) (quadrant: Quadrant) =
     let occupied = Set.singleton enterprisePos
     let klingonPositions, occupied = placeRandomItems random quadrant.Klingons occupied
@@ -293,7 +301,9 @@ let enterQuadrant (state: GameState) : string list * GameState =
     let scanned = Set.add state.Enterprise.Quadrant state.QuadrantsScanned
 
     let newState = { state with CurrentQuadrant = sectorMap; Klingons = klingons; QuadrantsScanned = scanned }
-    checkDocking newState
+    let dockMsgs, dockedState = checkDocking newState
+    let alertMsgs = redAlertMessages dockedState
+    dockMsgs @ alertMsgs, dockedState
 
 type private WalkResult =
     | Arrived of Position
