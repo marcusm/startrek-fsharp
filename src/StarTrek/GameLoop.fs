@@ -66,6 +66,22 @@ let private executeWithKlingonAttack (state: GameState) (action: GameState -> st
             let endMsgsAfterAction = checkAndHandleGameEnd finalState
             attackMsgs @ actionMsgs @ endMsgsAfterAction, finalState
 
+/// Player acts first, then surviving Klingons counter-attack (spec §8.1: phasers & torpedoes)
+let private executeWithKlingonCounterAttack (state: GameState) (action: GameState -> string list * GameState) : string list * GameState =
+    let actionMsgs, stateAfterAction = action state
+    let endMsgsAfterAction = checkAndHandleGameEnd stateAfterAction
+    if endMsgsAfterAction.Length > 0 then
+        actionMsgs @ endMsgsAfterAction, stateAfterAction
+    else if isDocked stateAfterAction then
+        let protectionMsgs =
+            if stateAfterAction.Klingons.Length > 0 then ["STAR BASE SHIELDS PROTECT THE ENTERPRISE"]
+            else []
+        actionMsgs @ protectionMsgs, stateAfterAction
+    else
+        let attackMsgs, stateAfterAttack = klingonAttack stateAfterAction
+        let endMsgs = checkAndHandleGameEnd stateAfterAttack
+        actionMsgs @ attackMsgs @ endMsgs, stateAfterAttack
+
 let private handleCommandMode (input: string) (state: GameState) =
     match input with
     | null | "" -> ()
@@ -161,7 +177,7 @@ let private handlePhaserEnergyInput (input: string) (state: GameState) =
         updatePrompt ()
     | _ ->
         let msgs, newState =
-            executeWithKlingonAttack state (fun s ->
+            executeWithKlingonCounterAttack state (fun s ->
                 Commands.phaserValidateAndExecute (input.Trim()) s)
         gameState <- Some newState
         inputMode <- CommandMode
@@ -176,7 +192,7 @@ let private handleTorpedoCourseInput (input: string) (state: GameState) =
         updatePrompt ()
     | _ ->
         let msgs, newState =
-            executeWithKlingonAttack state (fun s ->
+            executeWithKlingonCounterAttack state (fun s ->
                 Commands.torpedoValidateAndExecute (input.Trim()) s)
         gameState <- Some newState
         inputMode <- CommandMode
