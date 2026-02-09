@@ -21,10 +21,52 @@ let systemName (system: SystemDamage) : string =
     | ShieldControl -> "SHIELD CONTROL"
     | Computer -> "LIBRARY-COMPUTER"
 
+let allSystems = [|
+    WarpEngines; ShortRangeSensors; LongRangeSensors; Phasers;
+    PhotonTubes; DamageControl; ShieldControl; Computer
+|]
+
 let getDamagedSystems (enterprise: Enterprise) : (string * int) list =
     enterprise.Damage
     |> List.filter (fun d -> d.Amount < 0)
     |> List.map (fun d -> systemName d.System, d.Amount)
+
+/// §5.2 Automatic Repair: each damaged device gets +1 per warp move
+let automaticRepair (enterprise: Enterprise) : Enterprise =
+    let newDamage =
+        enterprise.Damage
+        |> List.map (fun d ->
+            if d.Amount < 0 then { d with Amount = d.Amount + 1 }
+            else d)
+    { enterprise with Damage = newDamage }
+
+/// §5.3 Random Damage/Repair Events: 20% chance per warp move
+let randomDamageEvent (random: IRandomService) (enterprise: Enterprise) : string list * Enterprise =
+    if random.NextDouble() > 0.2 then
+        [], enterprise
+    else
+        let deviceIndex = int (random.NextDouble() * 8.0)
+        let deviceIndex = min deviceIndex 7  // clamp to valid range
+        let targetSystem = allSystems.[deviceIndex]
+        let severity = int (random.NextDouble() * 5.0) + 1
+        let isImprovement = random.NextDouble() >= 0.5
+
+        let newDamage =
+            enterprise.Damage
+            |> List.map (fun d ->
+                if d.System = targetSystem then
+                    if isImprovement then { d with Amount = d.Amount + severity }
+                    else { d with Amount = d.Amount - severity }
+                else d)
+
+        let deviceName = systemName targetSystem
+        let msg =
+            if isImprovement then
+                sprintf "DAMAGE CONTROL REPORT: %s STATE OF REPAIR IMPROVED" deviceName
+            else
+                sprintf "DAMAGE CONTROL REPORT: %s DAMAGED" deviceName
+
+        [""; msg; ""], { enterprise with Damage = newDamage }
 
 let isShieldControlDamaged (enterprise: Enterprise) : bool =
     enterprise.Damage

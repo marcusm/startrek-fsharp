@@ -16,6 +16,7 @@
     <Compile Include="WarpTests.fs" />
     <Compile Include="PhaserTests.fs" />
     <Compile Include="TorpedoTests.fs" />
+    <Compile Include="RepairTests.fs" />
     <Compile Include="GameEndTests.fs" />
     <Compile Include="DockingTests.fs" />
     <Compile Include="Main.fs" />

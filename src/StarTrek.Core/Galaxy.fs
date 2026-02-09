@@ -356,9 +356,13 @@ let executeWarp (direction: float * float) (warpFactor: float) (state: GameState
                     Enterprise = newEnterprise
                     Stardate = { state.Stardate with Current = state.Stardate.Current + 1 } }
 
+            let repairedEnterprise = automaticRepair newState.Enterprise
+            let repairMsgs, repairedEnterprise = randomDamageEvent newState.Random repairedEnterprise
+            let newState = { newState with Enterprise = repairedEnterprise }
+
             let newState = enterQuadrant newState
             let dockMsgs, newState = checkDocking newState
-            edgeMsgs @ dockMsgs, newState
+            edgeMsgs @ repairMsgs @ dockMsgs, newState
         else
             sectorMap.[finalY - 1, finalX - 1] <- Enterprise
             let newEnterprise =
@@ -372,8 +376,12 @@ let executeWarp (direction: float * float) (warpFactor: float) (state: GameState
                     CurrentQuadrant = sectorMap
                     Stardate = { state.Stardate with Current = state.Stardate.Current + 1 } }
 
+            let repairedEnterprise = automaticRepair newState.Enterprise
+            let repairMsgs, repairedEnterprise = randomDamageEvent newState.Random repairedEnterprise
+            let newState = { newState with Enterprise = repairedEnterprise }
+
             let dockMsgs, newState = checkDocking newState
-            msgs @ dockMsgs, newState
+            msgs @ repairMsgs @ dockMsgs, newState
 
 let private generateKlingonCount (random: IRandomService) =
     let chance = random.NextDouble()
