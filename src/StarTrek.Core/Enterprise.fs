@@ -31,6 +31,10 @@ let getDamagedSystems (enterprise: Enterprise) : (string * int) list =
     |> List.filter (fun d -> d.Amount < 0)
     |> List.map (fun d -> systemName d.System, d.Amount)
 
+let getAllDeviceStatuses (enterprise: Enterprise) : (string * int) list =
+    enterprise.Damage
+    |> List.map (fun d -> systemName d.System, d.Amount)
+
 /// §5.2 Automatic Repair: each damaged device gets +1 per warp move
 let automaticRepair (enterprise: Enterprise) : Enterprise =
     let newDamage =
@@ -71,6 +75,14 @@ let randomDamageEvent (random: IRandomService) (enterprise: Enterprise) : string
 let isShieldControlDamaged (enterprise: Enterprise) : bool =
     enterprise.Damage
     |> List.exists (fun d -> d.System = ShieldControl && d.Amount < 0)
+
+let isDamageControlDamaged (enterprise: Enterprise) : bool =
+    enterprise.Damage
+    |> List.exists (fun d -> d.System = DamageControl && d.Amount < 0)
+
+let isShortRangeSensorsDamaged (enterprise: Enterprise) : bool =
+    enterprise.Damage
+    |> List.exists (fun d -> d.System = ShortRangeSensors && d.Amount < 0)
 
 let isPhasersDamaged (enterprise: Enterprise) : bool =
     enterprise.Damage
@@ -146,7 +158,7 @@ let firePhasers (blastEnergy: float) (state: GameState) : string list * GameStat
         let hitMsg = sprintf "%.0f UNIT HIT ON KLINGON AT SECTOR %d,%d" damage klingon.Sector.X klingon.Sector.Y
 
         if newEnergy <= 0.0 then
-            let destroyMsg = "*** KLINGON DESTROYED ***"
+            let destroyMsg = sprintf "*** KLINGON AT SECTOR %d,%d DESTROYED ***" klingon.Sector.X klingon.Sector.Y
             let newSectorMap = Array2D.copy sectorMap
             newSectorMap.[klingon.Sector.Y - 1, klingon.Sector.X - 1] <- Empty
             let qx = state.Enterprise.Quadrant.X - 1
@@ -211,7 +223,7 @@ let firePhotonTorpedo (direction: float * float) (state: GameState) : string lis
                 | Some klingon ->
                     let newEnergy = klingon.Energy - damage
                     if newEnergy <= 0.0 then
-                        let destroyMsg = "*** KLINGON DESTROYED ***"
+                        let destroyMsg = sprintf "*** KLINGON AT SECTOR %d,%d DESTROYED ***" sx sy
                         let newSectorMap = Array2D.copy currentState.CurrentQuadrant
                         newSectorMap.[sy - 1, sx - 1] <- Empty
                         let qx = currentState.Enterprise.Quadrant.X - 1
@@ -255,17 +267,9 @@ let firePhotonTorpedo (direction: float * float) (state: GameState) : string lis
                     { currentState with
                         CurrentQuadrant = newSectorMap
                         Quadrants = newQuadrants }
-                msgs @ ["*** STARBASE DESTROYED ***"; "STARFLEET COMMAND WILL HEAR OF THIS!"], newState
+                msgs @ ["*** STAR BASE DESTROYED ***  .......CONGRATULATIONS"], newState
             | Star ->
-                if state.Random.NextDouble() < 0.5 then
-                    msgs @ ["STAR ABSORBED TORPEDO ENERGY"], currentState
-                else
-                    let newDamage =
-                        currentState.Enterprise.Damage
-                        |> List.map (fun d -> { d with Amount = d.Amount - state.Random.Next(3) })
-                    let newEnt = { currentState.Enterprise with Damage = newDamage }
-                    let newState = { currentState with Enterprise = newEnt }
-                    msgs @ ["STAR RADIATION CAUSED DAMAGE TO SHIP SYSTEMS"], newState
+                msgs @ ["YOU CAN'T DESTROY STARS SILLY"], currentState
             | Enterprise -> trace nx ny msgs currentState
 
     let stateWithTorpedo = { state with Enterprise = newEnterprise }

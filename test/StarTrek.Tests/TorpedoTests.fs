@@ -100,7 +100,7 @@ let firePhotonTorpedoTests =
             let direction = getCourseVector 3.0 |> Option.get  // North
             let msgs, newState = firePhotonTorpedo direction state
             Expect.equal newState.Klingons.Length 0 "klingon should be destroyed"
-            Expect.isTrue (msgs |> List.exists (fun m -> m.Contains("KLINGON DESTROYED"))) "should report destruction"
+            Expect.isTrue (msgs |> List.exists (fun m -> m.Contains("KLINGON AT SECTOR") && m.Contains("DESTROYED"))) "should report destruction"
             Expect.equal newState.CurrentQuadrant.[1, 3] Empty "sector should be empty"
 
         testCase "destroyed Klingon decrements quadrant count" <| fun _ ->
@@ -146,31 +146,19 @@ let firePhotonTorpedoTests =
             let state = makeStateWithStarbase { X = 4; Y = 4 } { X = 4; Y = 2 } random
             let direction = getCourseVector 3.0 |> Option.get
             let msgs, newState = firePhotonTorpedo direction state
-            Expect.isTrue (msgs |> List.exists (fun m -> m.Contains("STARBASE DESTROYED"))) "should report starbase destruction"
-            Expect.isTrue (msgs |> List.exists (fun m -> m.Contains("STARFLEET COMMAND"))) "should warn about starfleet"
+            Expect.isTrue (msgs |> List.exists (fun m -> m.Contains("STAR BASE DESTROYED"))) "should report starbase destruction"
+            Expect.isTrue (msgs |> List.exists (fun m -> m.Contains("CONGRATULATIONS"))) "should congratulate"
             Expect.equal newState.CurrentQuadrant.[1, 3] Empty "starbase sector should be empty"
             let qx = newState.Enterprise.Quadrant.X - 1
             let qy = newState.Enterprise.Quadrant.Y - 1
             Expect.equal newState.Quadrants.[qx, qy].Starbases 0 "starbase count should be decremented"
 
-        testCase "torpedo hits star - absorbed (random < 0.5)" <| fun _ ->
-            // NextDouble returns 0.3 which is < 0.5, so star absorbs
+        testCase "torpedo hits star - rejected with message" <| fun _ ->
             let random = FixedRandom(0, 0.3) :> IRandomService
             let state = makeStateWithStar { X = 4; Y = 4 } { X = 4; Y = 2 } random
             let direction = getCourseVector 3.0 |> Option.get
             let msgs, _ = firePhotonTorpedo direction state
-            Expect.isTrue (msgs |> List.exists (fun m -> m.Contains("STAR ABSORBED TORPEDO ENERGY"))) "should absorb energy"
-
-        testCase "torpedo hits star - radiation damage (random >= 0.5)" <| fun _ ->
-            // NextDouble returns 0.8 which is >= 0.5, Next(3) returns 0+1=1 so each system gets -1 damage
-            let random = FixedRandom(1, 0.8) :> IRandomService
-            let state = makeStateWithStar { X = 4; Y = 4 } { X = 4; Y = 2 } random
-            let direction = getCourseVector 3.0 |> Option.get
-            let msgs, newState = firePhotonTorpedo direction state
-            Expect.isTrue (msgs |> List.exists (fun m -> m.Contains("RADIATION"))) "should report radiation damage"
-            // Each system should have damage decremented by 1
-            let allDamaged = newState.Enterprise.Damage |> List.forall (fun d -> d.Amount <= 0)
-            Expect.isTrue allDamaged "all systems should have some damage"
+            Expect.isTrue (msgs |> List.exists (fun m -> m.Contains("YOU CAN'T DESTROY STARS SILLY"))) "should reject with silly message"
     ]
 
 [<Tests>]
@@ -216,11 +204,10 @@ let torpedoDataTests =
                     let msgs, newState = firePhotonTorpedo direction st
                     let isHit =
                         msgs |> List.exists (fun m ->
-                            m.Contains("KLINGON DESTROYED") ||
+                            (m.Contains("KLINGON AT SECTOR") && m.Contains("DESTROYED")) ||
                             m.Contains("SENSORS SHOW") ||
-                            m.Contains("STARBASE DESTROYED") ||
-                            m.Contains("STAR ABSORBED") ||
-                            m.Contains("RADIATION"))
+                            m.Contains("STAR BASE DESTROYED") ||
+                            m.Contains("YOU CAN'T DESTROY STARS SILLY"))
                     (newState, results @ [(course, isHit, msgs)])
                 ) (state, [])
 

@@ -37,15 +37,18 @@ let private isAdjacent (a: Position) (b: Position) =
 let getCondition (state: GameState) =
     if isDocked state then "DOCKED"
     elif state.Klingons.Length > 0 then "RED"
-    elif state.Enterprise.Energy + state.Enterprise.Shields < 1000.0 then "YELLOW"
+    elif state.Enterprise.Energy < 300.0 then "YELLOW"
     else "GREEN"
 
 let shortRangeCommand (state: GameState) =
-    let qx = state.Enterprise.Quadrant.X
-    let qy = state.Enterprise.Quadrant.Y
-    let condition = getCondition state
-    [ sprintf "*** SHORT RANGE SENSOR SCAN FOR QUADRANT %d,%d ***" qx qy
-      sprintf "    CONDITION: %s" condition ], state
+    if isShortRangeSensorsDamaged state.Enterprise then
+        ["*** SHORT RANGE SENSORS ARE OUT ***"], state
+    else
+        let qx = state.Enterprise.Quadrant.X
+        let qy = state.Enterprise.Quadrant.Y
+        let condition = getCondition state
+        [ sprintf "*** SHORT RANGE SENSOR SCAN FOR QUADRANT %d,%d ***" qx qy
+          sprintf "    CONDITION: %s" condition ], state
 
 let longRangeScan (state: GameState) =
     if isLongRangeScannersDamaged state.Enterprise then
@@ -56,10 +59,9 @@ let longRangeScan (state: GameState) =
 
 let phaserStart (state: GameState) : string list * bool =
     if isPhasersDamaged state.Enterprise then
-        let repair = getPhaserRepairTime state.Enterprise
-        [sprintf "PHASER DAMAGED, %d STARDATES ESTIMATED FOR REPAIR" repair], false
+        ["PHASER CONTROL IS DISABLED"], false
     elif state.Klingons.Length = 0 then
-        ["PHASER FIRED AT EMPTY SPACE."], false
+        ["SHORT RANGE SENSORS REPORT NO KLINGONS IN THIS QUADRANT"], false
     else
         [sprintf "PHASERS LOCKED ON TARGET. ENERGY AVAILABLE = %.0f" state.Enterprise.Energy], true
 
@@ -92,7 +94,7 @@ let torpedoValidateAndExecute (input: string) (state: GameState) : string list *
 
 let shieldControl (state: GameState) =
     if isShieldControlDamaged state.Enterprise then
-        ["SHIELD CONTROL INOPERABLE"], state
+        ["SHIELD CONTROL IS NON-OPERATIONAL"], state
     else
         let total = state.Enterprise.Energy + state.Enterprise.Shields
         [sprintf "ENERGY AVAILABLE = %g. NUMBER OF UNITS TO SHIELDS?" total], state
@@ -110,13 +112,13 @@ let shieldValidateAndExecute (input: string) (state: GameState) : string list * 
         ["INVALID. SHIELDS UNCHANGED"], state
 
 let damageControlReport (state: GameState) =
-    let damaged = getDamagedSystems state.Enterprise
-    if damaged.IsEmpty then
-        ["DAMAGE CONTROL REPORT: ALL SYSTEMS FUNCTIONAL"], state
+    if isDamageControlDamaged state.Enterprise then
+        ["DAMAGE CONTROL REPORT IS NOT AVAILABLE"], state
     else
+        let statuses = getAllDeviceStatuses state.Enterprise
         let header = ["DAMAGE CONTROL REPORT:"]
         let lines =
-            damaged
+            statuses
             |> List.map (fun (name, amount) -> sprintf "  %-22s %d" name amount)
         header @ lines, state
 

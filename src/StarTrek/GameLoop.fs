@@ -106,7 +106,7 @@ let private handleCommandMode (input: string) (state: GameState) =
             if msgs.Length > 0 then TerminalUI.appendMessages msgs
         | "5" ->
             let msgs, _ = Commands.shieldControl state
-            if msgs.Length > 0 && msgs.[0] = "SHIELD CONTROL INOPERABLE" then
+            if msgs.Length > 0 && msgs.[0] = "SHIELD CONTROL IS NON-OPERATIONAL" then
                 TerminalUI.appendMessages msgs
             else
                 inputMode <- ShieldEnergyInput

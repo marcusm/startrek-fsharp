@@ -111,7 +111,7 @@ let firePhaserTests =
             let state = makeState [| mkKlingon 4 5 50.0 |] { X = 4; Y = 4 }
             let msgs, newState = firePhasers 500.0 state
             Expect.equal newState.Klingons.Length 0 "klingon should be removed"
-            Expect.isTrue (msgs |> List.exists (fun m -> m.Contains("KLINGON DESTROYED"))) "should report destruction"
+            Expect.isTrue (msgs |> List.exists (fun m -> m.Contains("KLINGON AT SECTOR") && m.Contains("DESTROYED"))) "should report destruction with coords"
             Expect.equal newState.CurrentQuadrant.[4, 3] Empty "sector should be empty"
 
         testCase "destroyed Klingon decrements quadrant count" <| fun _ ->
