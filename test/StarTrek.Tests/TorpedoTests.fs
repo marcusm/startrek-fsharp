@@ -32,7 +32,8 @@ let private makeState (klingons: Klingon array) enterpriseSector (random: IRando
       Quadrants = quadrants
       Stardate = { Current = 2500; Start = 2500; Turns = 30 }
       QuadrantsScanned = Set.empty
-      Random = random }
+      Random = random
+      InitialKlingons = Array.length klingons }
 
 let private makeStateWithStarbase enterpriseSector starbasePos (random: IRandomService) =
     let enterprise = resetEnterprise { X = 4; Y = 4 } enterpriseSector
@@ -50,7 +51,8 @@ let private makeStateWithStarbase enterpriseSector starbasePos (random: IRandomS
       Quadrants = quadrants
       Stardate = { Current = 2500; Start = 2500; Turns = 30 }
       QuadrantsScanned = Set.empty
-      Random = random }
+      Random = random
+      InitialKlingons = 0 }
 
 let private makeStateWithStar enterpriseSector starPos (random: IRandomService) =
     let enterprise = resetEnterprise { X = 4; Y = 4 } enterpriseSector
@@ -65,7 +67,8 @@ let private makeStateWithStar enterpriseSector starPos (random: IRandomService) 
       Quadrants = quadrants
       Stardate = { Current = 2500; Start = 2500; Turns = 30 }
       QuadrantsScanned = Set.empty
-      Random = random }
+      Random = random
+      InitialKlingons = 0 }
 
 [<Tests>]
 let torpedoDamageCheckTests =

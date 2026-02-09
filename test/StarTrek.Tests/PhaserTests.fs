@@ -31,7 +31,8 @@ let private makeStateWithShields (klingons: Klingon array) enterpriseSector shie
       Quadrants = quadrants
       Stardate = { Current = 2500; Start = 2500; Turns = 30 }
       QuadrantsScanned = Set.empty
-      Random = FixedRandom(1.0) :> IRandomService }
+      Random = FixedRandom(1.0) :> IRandomService
+      InitialKlingons = Array.length klingons }
 
 let private makeState (klingons: Klingon array) enterpriseSector =
     let enterprise = resetEnterprise { X = 4; Y = 4 } enterpriseSector
@@ -50,7 +51,8 @@ let private makeState (klingons: Klingon array) enterpriseSector =
       Quadrants = quadrants
       Stardate = { Current = 2500; Start = 2500; Turns = 30 }
       QuadrantsScanned = Set.empty
-      Random = FixedRandom(1.0) :> IRandomService }
+      Random = FixedRandom(1.0) :> IRandomService
+      InitialKlingons = Array.length klingons }
 
 [<Tests>]
 let phaserDamageCheckTests =

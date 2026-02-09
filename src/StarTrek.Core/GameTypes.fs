@@ -44,6 +44,12 @@ type ShipCondition =
     | DeadInSpace
     | Destroyed
 
+type GameEndCondition =
+    | Victory
+    | TimeExpired
+    | PlayerDestroyed
+    | PlayerDeadInSpace
+
 type SystemDamage =
     | Computer
     | WarpEngines
@@ -92,6 +98,7 @@ type GameState = {
     Stardate: Stardate
     QuadrantsScanned: Set<Position>
     Random: IRandomService
+    InitialKlingons: int
 }
 
 module GameDefaults =

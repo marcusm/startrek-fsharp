@@ -149,6 +149,64 @@ let statusReportLines (state: GameState) : string list =
         sprintf "STARBASES LEFT     : %d" totalStarbases
     ]
 
+let totalKlingonsRemaining (state: GameState) : int =
+    state.Quadrants
+    |> Seq.cast<Quadrant>
+    |> Seq.sumBy (fun q -> q.Klingons)
+
+let stardatesRemaining (state: GameState) : int =
+    state.Stardate.Turns - (state.Stardate.Current - state.Stardate.Start)
+
+let efficiencyRating (state: GameState) : float =
+    let timeUsed = float (state.Stardate.Current - state.Stardate.Start)
+    if timeUsed <= 0.0 then
+        float state.InitialKlingons * 1000.0
+    else
+        float state.InitialKlingons / timeUsed * 1000.0
+
+let checkGameEnd (state: GameState) : GameEndCondition option =
+    let klingonsLeft = totalKlingonsRemaining state
+    if klingonsLeft = 0 then
+        Some Victory
+    elif stardatesRemaining state <= 0 then
+        Some TimeExpired
+    elif condition state.Enterprise = Destroyed then
+        Some PlayerDestroyed
+    elif condition state.Enterprise = DeadInSpace && state.Klingons.Length > 0 then
+        Some PlayerDeadInSpace
+    else
+        None
+
+let victoryMessages (state: GameState) : string list =
+    let rating = efficiencyRating state
+    [
+        "THE LAST KLINGON BATTLE CRUISER IN THE GALAXY HAS BEEN DESTROYED."
+        "THE FEDERATION HAS BEEN SAVED."
+        ""
+        "YOU HAVE BEEN PROMOTED TO ADMIRAL."
+        sprintf "%.2f IS YOUR EFFICIENCY RATING." rating
+    ]
+
+let timeExpiredMessages (state: GameState) : string list =
+    let klingonsLeft = totalKlingonsRemaining state
+    [
+        sprintf "IT IS STARDATE %d." state.Stardate.Current
+        sprintf "THERE ARE STILL %d KLINGON BATTLE CRUISERS." klingonsLeft
+        "YOU HAVE BEEN RELIEVED OF COMMAND."
+    ]
+
+let destroyedMessages () : string list =
+    [
+        "THE ENTERPRISE HAS BEEN DESTROYED. THE FEDERATION WILL BE CONQUERED."
+    ]
+
+let deadInSpaceMessages () : string list =
+    [
+        "THE ENTERPRISE IS DEAD IN SPACE. KLINGONS CLOSE IN."
+        "YOU HAVE BEEN RELIEVED OF COMMAND --"
+        "DEMOTED TO THE RANK OF LIEUTENANT."
+    ]
+
 let torpedoDataLines (state: GameState) : string list =
     if state.Klingons.Length = 0 then
         ["SCIENCE OFFICER SPOCK REPORTS:"; "  'SENSORS SHOW NO ENEMY SHIPS IN THIS QUADRANT.'"]
@@ -337,7 +395,8 @@ let rec private tryGenerateGame (random: IRandomService) : GameState =
               Start = startDate
               Turns = turns }
           QuadrantsScanned = Set.empty
-          Random = random }
+          Random = random
+          InitialKlingons = totalKlingons }
 
 let initializeGame (seed: int) : GameState =
     let random = Random(seed) :> IRandomService

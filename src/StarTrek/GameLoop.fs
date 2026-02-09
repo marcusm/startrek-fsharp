@@ -28,17 +28,35 @@ let processCommand (input: string) (state: GameState) : string list * GameState 
 let private updatePrompt () =
     TerminalUI.setPromptText (promptText inputMode)
 
+let private checkAndHandleGameEnd (state: GameState) : string list =
+    match checkGameEnd state with
+    | Some Victory ->
+        let msgs = victoryMessages state
+        TerminalUI.requestStop ()
+        msgs
+    | Some TimeExpired ->
+        let msgs = timeExpiredMessages state
+        TerminalUI.requestStop ()
+        msgs
+    | Some PlayerDestroyed ->
+        let msgs = destroyedMessages ()
+        TerminalUI.requestStop ()
+        msgs
+    | Some PlayerDeadInSpace ->
+        let msgs = deadInSpaceMessages ()
+        TerminalUI.requestStop ()
+        msgs
+    | None -> []
+
 let private executeWithKlingonAttack (state: GameState) (action: GameState -> string list * GameState) : string list * GameState =
     let attackMsgs, stateAfterAttack = klingonAttack state
-    match condition stateAfterAttack.Enterprise with
-    | Destroyed ->
-        let endReport = statusReportLines stateAfterAttack
-        let msgs = attackMsgs @ ["THE ENTERPRISE HAS BEEN DESTROYED. THE FEDERATION WILL BE CONQUERED."] @ endReport
-        TerminalUI.requestStop ()
-        msgs, stateAfterAttack
-    | _ ->
+    let endMsgs = checkAndHandleGameEnd stateAfterAttack
+    if endMsgs.Length > 0 then
+        attackMsgs @ endMsgs, stateAfterAttack
+    else
         let actionMsgs, finalState = action stateAfterAttack
-        attackMsgs @ actionMsgs, finalState
+        let endMsgsAfterAction = checkAndHandleGameEnd finalState
+        attackMsgs @ actionMsgs @ endMsgsAfterAction, finalState
 
 let private handleCommandMode (input: string) (state: GameState) =
     match input with
