@@ -295,6 +295,56 @@ let enterQuadrant (state: GameState) : string list * GameState =
     let newState = { state with CurrentQuadrant = sectorMap; Klingons = klingons; QuadrantsScanned = scanned }
     checkDocking newState
 
+type private WalkResult =
+    | Arrived of Position
+    | ExitedQuadrant of Position
+    | Blocked of Position
+
+let private walkSectors (sectorMap: Sector[,]) (direction: float * float) (numSteps: int) (startX: float) (startY: float) (startPos: Position) : WalkResult =
+    let dx, dy = direction
+    let rec step n (fx: float) (fy: float) (prev: Position) =
+        if n > numSteps then
+            Arrived prev
+        else
+            let nx = fx + dx
+            let ny = fy + dy
+            let sx = int (System.Math.Round(nx))
+            let sy = int (System.Math.Round(ny))
+            if sx < 1 || sx > galaxySize || sy < 1 || sy > galaxySize then
+                ExitedQuadrant prev
+            else
+                match sectorMap.[sy - 1, sx - 1] with
+                | Empty -> step (n + 1) nx ny { X = sx; Y = sy }
+                | _ -> Blocked prev
+    step 1 startX startY startPos
+
+let private resolveExitPosition (quadrant: Position) (startX: float) (startY: float) (direction: float * float) (numSteps: int) =
+    let dx, dy = direction
+    let absX = float (quadrant.X - 1) * 8.0 + startX + dx * float numSteps
+    let absY = float (quadrant.Y - 1) * 8.0 + startY + dy * float numSteps
+    let newQX = int (System.Math.Floor(absX / 8.0)) + 1
+    let newQY = int (System.Math.Floor(absY / 8.0)) + 1
+    let clampedQX = max 1 (min galaxySize newQX)
+    let clampedQY = max 1 (min galaxySize newQY)
+    let hitEdge = clampedQX <> newQX || clampedQY <> newQY
+    { X = clampedQX; Y = clampedQY }, hitEdge
+
+let private applyRepairCycle (state: GameState) : string list * GameState =
+    let repaired = automaticRepair state.Enterprise
+    let msgs, repaired = randomDamageEvent state.Random repaired
+    msgs, { state with Enterprise = repaired }
+
+let private andThen (f: GameState -> string list * GameState) (msgs: string list, state: GameState) : string list * GameState =
+    let moreMsgs, newState = f state
+    msgs @ moreMsgs, newState
+
+let private perimeterDenialMessages (lastPos: Position) (newQuadrant: Position) =
+    ["LT. UHURA REPORTS MESSAGE FROM STARFLEET COMMAND:";
+     "  'PERMISSION TO ATTEMPT CROSSING OF GALACTIC PERIMETER";
+     "  IS HEREBY *DENIED*. SHUT DOWN YOUR ENGINES.'";
+     "CHIEF ENGINEER SCOTT REPORTS 'WARP ENGINES SHUT DOWN";
+     sprintf "  AT SECTOR %d,%d OF QUADRANT %d,%d.'" lastPos.X lastPos.Y newQuadrant.X newQuadrant.Y]
+
 let executeWarp (direction: float * float) (warpFactor: float) (state: GameState) : string list * GameState =
     let numSteps = int (warpFactor * 8.0 + 0.5)
     let energyCost = float (warpEnergyCost warpFactor)
@@ -302,89 +352,41 @@ let executeWarp (direction: float * float) (warpFactor: float) (state: GameState
     if state.Enterprise.Energy - state.Enterprise.Shields < energyCost then
         ["ENGINEERING REPORTS: 'INSUFFICIENT ENERGY AVAILABLE"; sprintf "                      FOR MANEUVERING AT WARP %g'!" warpFactor], state
     else
-        let dx, dy = direction
         let sectorMap = Array2D.copy state.CurrentQuadrant
         let ep = state.Enterprise.Sector
         sectorMap.[ep.Y - 1, ep.X - 1] <- Empty
-
         let startX = float ep.X - 0.5
         let startY = float ep.Y - 0.5
 
-        let rec walk step (fx: float) (fy: float) (prevX: int) (prevY: int) =
-            if step > numSteps then
-                (prevX, prevY, false, false)
-            else
-                let nx = fx + dx
-                let ny = fy + dy
-                let sx = int (System.Math.Round(nx))
-                let sy = int (System.Math.Round(ny))
-                if sx < 1 || sx > galaxySize || sy < 1 || sy > galaxySize then
-                    (prevX, prevY, true, false)
-                else
-                    match sectorMap.[sy - 1, sx - 1] with
-                    | Empty -> walk (step + 1) nx ny sx sy
-                    | _ -> (prevX, prevY, false, true)
+        let deductAndAdvance newEnterprise =
+            { state with
+                Enterprise = { newEnterprise with Energy = state.Enterprise.Energy - energyCost }
+                Stardate = { state.Stardate with Current = state.Stardate.Current + 1 } }
 
-        let (finalX, finalY, exited, blocked) = walk 1 startX startY ep.X ep.Y
-
-        let msgs = if blocked then ["WARP ENGINES SHUT DOWN AT SECTOR"; sprintf "%d,%d DUE TO BAD NAVIGATION" finalX finalY] else []
-
-        if exited then
-            let absX = float (state.Enterprise.Quadrant.X - 1) * 8.0 + startX + dx * float numSteps
-            let absY = float (state.Enterprise.Quadrant.Y - 1) * 8.0 + startY + dy * float numSteps
-            let newQX = int (System.Math.Floor(absX / 8.0)) + 1
-            let newQY = int (System.Math.Floor(absY / 8.0)) + 1
-            let clampedQX = max 1 (min galaxySize newQX)
-            let clampedQY = max 1 (min galaxySize newQY)
-            let hitEdge = clampedQX <> newQX || clampedQY <> newQY
-
-            let edgeMsgs =
-                if hitEdge then
-                    ["LT. UHURA REPORTS MESSAGE FROM STARFLEET COMMAND:";
-                     "  'PERMISSION TO ATTEMPT CROSSING OF GALACTIC PERIMETER";
-                     "  IS HEREBY *DENIED*. SHUT DOWN YOUR ENGINES.'";
-                     "CHIEF ENGINEER SCOTT REPORTS 'WARP ENGINES SHUT DOWN";
-                     sprintf "  AT SECTOR %d,%d OF QUADRANT %d,%d.'" finalX finalY clampedQX clampedQY]
-                else []
-
+        match walkSectors sectorMap direction numSteps startX startY ep with
+        | ExitedQuadrant lastPos ->
+            let newQuadrant, hitEdge = resolveExitPosition state.Enterprise.Quadrant startX startY direction numSteps
+            let edgeMsgs = if hitEdge then perimeterDenialMessages lastPos newQuadrant else []
             let newSectorPos = findEmptyPosition state.Random Set.empty
+            let newEnterprise = { state.Enterprise with Quadrant = newQuadrant; Sector = newSectorPos }
+            (edgeMsgs, deductAndAdvance newEnterprise)
+            |> andThen applyRepairCycle
+            |> andThen enterQuadrant
 
-            let newEnterprise =
-                { state.Enterprise with
-                    Quadrant = { X = clampedQX; Y = clampedQY }
-                    Sector = newSectorPos
-                    Energy = state.Enterprise.Energy - energyCost }
+        | Blocked pos ->
+            sectorMap.[pos.Y - 1, pos.X - 1] <- Enterprise
+            let newEnterprise = { state.Enterprise with Sector = pos }
+            let msgs = ["WARP ENGINES SHUT DOWN AT SECTOR"; sprintf "%d,%d DUE TO BAD NAVIGATION" pos.X pos.Y]
+            (msgs, { deductAndAdvance newEnterprise with CurrentQuadrant = sectorMap })
+            |> andThen applyRepairCycle
+            |> andThen checkDocking
 
-            let newState =
-                { state with
-                    Enterprise = newEnterprise
-                    Stardate = { state.Stardate with Current = state.Stardate.Current + 1 } }
-
-            let repairedEnterprise = automaticRepair newState.Enterprise
-            let repairMsgs, repairedEnterprise = randomDamageEvent newState.Random repairedEnterprise
-            let newState = { newState with Enterprise = repairedEnterprise }
-
-            let enterMsgs, newState = enterQuadrant newState
-            edgeMsgs @ repairMsgs @ enterMsgs, newState
-        else
-            sectorMap.[finalY - 1, finalX - 1] <- Enterprise
-            let newEnterprise =
-                { state.Enterprise with
-                    Sector = { X = finalX; Y = finalY }
-                    Energy = state.Enterprise.Energy - energyCost }
-
-            let newState =
-                { state with
-                    Enterprise = newEnterprise
-                    CurrentQuadrant = sectorMap
-                    Stardate = { state.Stardate with Current = state.Stardate.Current + 1 } }
-
-            let repairedEnterprise = automaticRepair newState.Enterprise
-            let repairMsgs, repairedEnterprise = randomDamageEvent newState.Random repairedEnterprise
-            let newState = { newState with Enterprise = repairedEnterprise }
-
-            let dockMsgs, newState = checkDocking newState
-            msgs @ repairMsgs @ dockMsgs, newState
+        | Arrived pos ->
+            sectorMap.[pos.Y - 1, pos.X - 1] <- Enterprise
+            let newEnterprise = { state.Enterprise with Sector = pos }
+            ([], { deductAndAdvance newEnterprise with CurrentQuadrant = sectorMap })
+            |> andThen applyRepairCycle
+            |> andThen checkDocking
 
 let private generateKlingonCount (random: IRandomService) =
     let chance = random.NextDouble()
