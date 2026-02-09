@@ -95,7 +95,7 @@ let longRangeScan (state: GameState) : string list * Set<Position> =
     lines, scanned
 
 let warpEnergyCost (warpFactor: float) : int =
-    int (warpFactor * 8.0 + 0.5) + 10
+    int (floor (warpFactor * 8.0)) - 5
 
 let isWarpDamaged (enterprise: Enterprise) : bool =
     enterprise.Damage

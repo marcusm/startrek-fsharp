@@ -26,14 +26,14 @@ let private clearSectorMap (state: GameState) =
 [<Tests>]
 let warpCostTests =
     testList "warpEnergyCost" [
-        testCase "warp 1 costs 18" <| fun _ ->
-            Expect.equal (warpEnergyCost 1.0) 18 "warp 1 = int(1*8+0.5)+10 = 18"
+        testCase "warp 1 costs 3" <| fun _ ->
+            Expect.equal (warpEnergyCost 1.0) 3 "warp 1 = floor(1*8)-5 = 3"
 
-        testCase "warp 0.125 costs 11" <| fun _ ->
-            Expect.equal (warpEnergyCost 0.125) 11 "warp 0.125 = int(0.125*8+0.5)+10 = 11"
+        testCase "warp 0.125 costs -4" <| fun _ ->
+            Expect.equal (warpEnergyCost 0.125) -4 "warp 0.125 = floor(0.125*8)-5 = -4"
 
-        testCase "warp 8 costs 74" <| fun _ ->
-            Expect.equal (warpEnergyCost 8.0) 74 "warp 8 = int(8*8+0.5)+10 = 74"
+        testCase "warp 8 costs 59" <| fun _ ->
+            Expect.equal (warpEnergyCost 8.0) 59 "warp 8 = floor(8*8)-5 = 59"
     ]
 
 [<Tests>]
