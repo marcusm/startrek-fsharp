@@ -34,22 +34,9 @@ let warpValidateAndExecute (course: float) (input: string) (state: GameState) : 
 let private isAdjacent (a: Position) (b: Position) =
     abs (a.X - b.X) <= 1 && abs (a.Y - b.Y) <= 1 && a <> b
 
-let private isDocked (state: GameState) =
-    let ep = state.Enterprise.Sector
-    let sectorMap = state.CurrentQuadrant
-    seq {
-        for dy in -1..1 do
-            for dx in -1..1 do
-                if dx <> 0 || dy <> 0 then
-                    let nx, ny = ep.X + dx, ep.Y + dy
-                    if nx >= 1 && nx <= galaxySize && ny >= 1 && ny <= galaxySize then
-                        yield sectorMap.[ny - 1, nx - 1]
-    }
-    |> Seq.exists (fun s -> match s with Starbase -> true | _ -> false)
-
 let getCondition (state: GameState) =
-    if state.Klingons.Length > 0 then "RED"
-    elif isDocked state then "DOCKED"
+    if isDocked state then "DOCKED"
+    elif state.Klingons.Length > 0 then "RED"
     elif state.Enterprise.Energy + state.Enterprise.Shields < 1000.0 then "YELLOW"
     else "GREEN"
 

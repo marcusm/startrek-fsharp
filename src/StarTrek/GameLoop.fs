@@ -49,14 +49,22 @@ let private checkAndHandleGameEnd (state: GameState) : string list =
     | None -> []
 
 let private executeWithKlingonAttack (state: GameState) (action: GameState -> string list * GameState) : string list * GameState =
-    let attackMsgs, stateAfterAttack = klingonAttack state
-    let endMsgs = checkAndHandleGameEnd stateAfterAttack
-    if endMsgs.Length > 0 then
-        attackMsgs @ endMsgs, stateAfterAttack
-    else
-        let actionMsgs, finalState = action stateAfterAttack
+    if isDocked state then
+        let protectionMsgs =
+            if state.Klingons.Length > 0 then ["STAR BASE SHIELDS PROTECT THE ENTERPRISE"]
+            else []
+        let actionMsgs, finalState = action state
         let endMsgsAfterAction = checkAndHandleGameEnd finalState
-        attackMsgs @ actionMsgs @ endMsgsAfterAction, finalState
+        protectionMsgs @ actionMsgs @ endMsgsAfterAction, finalState
+    else
+        let attackMsgs, stateAfterAttack = klingonAttack state
+        let endMsgs = checkAndHandleGameEnd stateAfterAttack
+        if endMsgs.Length > 0 then
+            attackMsgs @ endMsgs, stateAfterAttack
+        else
+            let actionMsgs, finalState = action stateAfterAttack
+            let endMsgsAfterAction = checkAndHandleGameEnd finalState
+            attackMsgs @ actionMsgs @ endMsgsAfterAction, finalState
 
 let private handleCommandMode (input: string) (state: GameState) =
     match input with

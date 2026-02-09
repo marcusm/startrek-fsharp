@@ -17,6 +17,7 @@
     <Compile Include="PhaserTests.fs" />
     <Compile Include="TorpedoTests.fs" />
     <Compile Include="GameEndTests.fs" />
+    <Compile Include="DockingTests.fs" />
     <Compile Include="Main.fs" />
   </ItemGroup>
 

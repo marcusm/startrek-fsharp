@@ -229,6 +229,31 @@ let torpedoDataLines (state: GameState) : string list =
                     klingon.Sector.X klingon.Sector.Y course distance
         ]
 
+let isDocked (state: GameState) : bool =
+    let ep = state.Enterprise.Sector
+    let sectorMap = state.CurrentQuadrant
+    seq {
+        for dy in -1..1 do
+            for dx in -1..1 do
+                if dx <> 0 || dy <> 0 then
+                    let nx, ny = ep.X + dx, ep.Y + dy
+                    if nx >= 1 && nx <= galaxySize && ny >= 1 && ny <= galaxySize then
+                        yield sectorMap.[ny - 1, nx - 1]
+    }
+    |> Seq.exists (fun s -> match s with Starbase -> true | _ -> false)
+
+let checkDocking (state: GameState) : string list * GameState =
+    if isDocked state then
+        let enterprise = state.Enterprise
+        let resupplied =
+            { enterprise with
+                Energy = 3000.0
+                Torpedoes = 10
+                Shields = 0.0 }
+        ["SHIELDS DROPPED FOR DOCKING PURPOSES"], { state with Enterprise = resupplied }
+    else
+        [], state
+
 let enterQuadrant (state: GameState) : GameState =
     let qx = state.Enterprise.Quadrant.X - 1
     let qy = state.Enterprise.Quadrant.Y - 1
@@ -262,7 +287,9 @@ let enterQuadrant (state: GameState) : GameState =
             | None -> Empty)
 
     let scanned = Set.add state.Enterprise.Quadrant state.QuadrantsScanned
-    { state with CurrentQuadrant = sectorMap; Klingons = klingons; QuadrantsScanned = scanned }
+    let newState = { state with CurrentQuadrant = sectorMap; Klingons = klingons; QuadrantsScanned = scanned }
+    let _, dockedState = checkDocking newState
+    dockedState
 
 let executeWarp (direction: float * float) (warpFactor: float) (state: GameState) : string list * GameState =
     let numSteps = int (warpFactor * 8.0 + 0.5)
@@ -330,7 +357,8 @@ let executeWarp (direction: float * float) (warpFactor: float) (state: GameState
                     Stardate = { state.Stardate with Current = state.Stardate.Current + 1 } }
 
             let newState = enterQuadrant newState
-            edgeMsgs, newState
+            let dockMsgs, newState = checkDocking newState
+            edgeMsgs @ dockMsgs, newState
         else
             sectorMap.[finalY - 1, finalX - 1] <- Enterprise
             let newEnterprise =
@@ -344,7 +372,8 @@ let executeWarp (direction: float * float) (warpFactor: float) (state: GameState
                     CurrentQuadrant = sectorMap
                     Stardate = { state.Stardate with Current = state.Stardate.Current + 1 } }
 
-            msgs, newState
+            let dockMsgs, newState = checkDocking newState
+            msgs @ dockMsgs, newState
 
 let private generateKlingonCount (random: IRandomService) =
     let chance = random.NextDouble()
