@@ -29,8 +29,10 @@ let warpCostTests =
         testCase "warp 1 costs 3" <| fun _ ->
             Expect.equal (warpEnergyCost 1.0) 3 "warp 1 = floor(1*8)-5 = 3"
 
-        testCase "warp 0.125 costs -4" <| fun _ ->
-            Expect.equal (warpEnergyCost 0.125) -4 "warp 0.125 = floor(0.125*8)-5 = -4"
+        testCase "sub-warp costs fixed 1" <| fun _ ->
+            Expect.equal (warpEnergyCost 0.125) 1 "sub-warp costs 1"
+            Expect.equal (warpEnergyCost 0.5) 1 "sub-warp costs 1"
+            Expect.equal (warpEnergyCost 0.99) 1 "sub-warp costs 1"
 
         testCase "warp 8 costs 59" <| fun _ ->
             Expect.equal (warpEnergyCost 8.0) 59 "warp 8 = floor(8*8)-5 = 59"
@@ -70,7 +72,7 @@ let executeWarpTests =
         testCase "same quadrant moves Enterprise and deducts energy" <| fun _ ->
             let state = makeStateWithEnterpriseAt 1 4 |> clearSectorMap
             let direction = getCourseVector 1.0 |> Option.get  // East
-            let msgs, newState = executeWarp direction 0.5 state  // 4 steps
+            let msgs, newState = executeWarp direction 1.0 state
             Expect.notEqual newState.Enterprise.Sector state.Enterprise.Sector "should have moved"
             Expect.isGreaterThan newState.Enterprise.Sector.X state.Enterprise.Sector.X "should move right"
             Expect.isLessThan newState.Enterprise.Energy state.Enterprise.Energy "energy should decrease"
@@ -90,7 +92,7 @@ let executeWarpTests =
 
         testCase "insufficient energy refuses and leaves state unchanged" <| fun _ ->
             let state = makeTestState ()
-            let lowEnergy = { state with Enterprise = { state.Enterprise with Energy = 5.0 } }
+            let lowEnergy = { state with Enterprise = { state.Enterprise with Energy = 1.0 } }
             let direction = getCourseVector 1.0 |> Option.get
             let msgs, newState = executeWarp direction 1.0 lowEnergy
             Expect.equal newState.Enterprise.Sector lowEnergy.Enterprise.Sector "sector unchanged"

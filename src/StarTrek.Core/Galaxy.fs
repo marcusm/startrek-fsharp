@@ -95,7 +95,8 @@ let longRangeScan (state: GameState) : string list * Set<Position> =
     lines, scanned
 
 let warpEnergyCost (warpFactor: float) : int =
-    int (floor (warpFactor * 8.0)) - 5
+    if warpFactor < 1.0 then 1
+    else int (floor (warpFactor * 8.0)) - 5
 
 let isWarpDamaged (enterprise: Enterprise) : bool =
     enterprise.Damage
@@ -435,7 +436,7 @@ let rec private tryGenerateGame (random: IRandomService) : GameState =
     else
         let enterprise = placeEnterprise random
 
-        let startDate = int (((random.NextDouble() * 20.0) + 20.0) * 100.0)
+        let startDate = int (floor (random.NextDouble() * 20.0 + 20.0)) * 100
         let turns = int (random.NextDouble() * 20.0 + 20.0)
 
         { Enterprise = enterprise
