@@ -105,4 +105,10 @@ let enterpriseTests =
             let withDamage = { ship with Damage = damageList }
             let damaged = getDamagedSystems withDamage
             Expect.equal damaged [("LIBRARY-COMPUTER", -5)] "should show computer with -5"
+
+        testCase "transferShields with 0.0 is rejected per spec" <| fun _ ->
+            let ship = { (resetEnterprise { X = 1; Y = 1 } { X = 1; Y = 1 }) with Energy = 2500.0; Shields = 500.0 }
+            match transferShields 0.0 ship with
+            | Error msg -> Expect.stringContains msg "INVALID" "should say invalid"
+            | Ok _ -> failtest "should have returned error for 0.0"
     ]

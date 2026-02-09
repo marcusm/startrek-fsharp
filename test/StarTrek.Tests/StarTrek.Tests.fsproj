@@ -19,11 +19,13 @@
     <Compile Include="RepairTests.fs" />
     <Compile Include="GameEndTests.fs" />
     <Compile Include="DockingTests.fs" />
+    <Compile Include="CommandTests.fs" />
     <Compile Include="Main.fs" />
   </ItemGroup>
 
   <ItemGroup>
     <ProjectReference Include="..\..\src\StarTrek.Core\StarTrek.Core.fsproj" />
+    <ProjectReference Include="..\..\src\StarTrek\StarTrek.fsproj" />
   </ItemGroup>
 
 </Project>

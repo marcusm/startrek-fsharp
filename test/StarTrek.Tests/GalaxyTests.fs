@@ -378,3 +378,184 @@ let longRangeScanTests =
                         if d.System = LongRangeSensors then { d with Amount = -1 } else d) }
             Expect.isTrue (isLongRangeScannersDamaged damagedEnterprise) "should be damaged"
     ]
+
+type FixedRandom(value: float) =
+    interface IRandomService with
+        member _.Next() = 0
+        member _.Next(_max: int) = 0
+        member _.Next(min: int, _max: int) = min
+        member _.NextDouble() = value
+
+let private mkKlingon x y energy : Klingon =
+    { Sector = { X = x; Y = y }; Energy = energy }
+
+let private makeSimpleState () =
+    let enterprise = StarTrek.Enterprise.resetEnterprise { X = 4; Y = 4 } { X = 4; Y = 4 }
+    let quadrants = Array2D.init 8 8 (fun x y ->
+        { Quadrant = { X = x + 1; Y = y + 1 }; Klingons = 0; Starbases = 0; Stars = 4 })
+    quadrants.[0, 0] <- { quadrants.[0, 0] with Klingons = 2; Starbases = 1; Stars = 3 }
+    quadrants.[3, 3] <- { quadrants.[3, 3] with Klingons = 1; Starbases = 0; Stars = 5 }
+    let sectorMap = Array2D.create 8 8 Empty
+    sectorMap.[3, 3] <- Sector.Enterprise
+    { Enterprise = enterprise
+      Klingons = [||]
+      CurrentQuadrant = sectorMap
+      Quadrants = quadrants
+      Stardate = { Current = 2500; Start = 2500; Turns = 30 }
+      QuadrantsScanned = Set.empty
+      Random = FixedRandom(0.5) :> IRandomService
+      InitialKlingons = 3 }
+
+[<Tests>]
+let galacticRecordTests =
+    testList "galacticRecordLines" [
+        testCase "header contains CUMULATIVE GALACTIC RECORD" <| fun _ ->
+            let state = makeSimpleState ()
+            let lines = galacticRecordLines state
+            Expect.isTrue (lines.[0].Contains("CUMULATIVE GALACTIC RECORD")) "should have header"
+
+        testCase "unscanned quadrants show ???" <| fun _ ->
+            let state = makeSimpleState ()
+            let lines = galacticRecordLines state
+            // No quadrants scanned, all should show ???
+            let dataLines = lines |> List.filter (fun l -> l.Contains("???"))
+            Expect.isNonEmpty dataLines "all unscanned quadrants should show ???"
+
+        testCase "scanned quadrants show 3-digit code" <| fun _ ->
+            let state = makeSimpleState ()
+            // Mark quadrant 1,1 as scanned
+            let state = { state with QuadrantsScanned = Set.singleton { X = 1; Y = 1 } }
+            let lines = galacticRecordLines state
+            // quadrant[0,0] has K=2, B=1, S=3 -> encoded as 213
+            let hasCode = lines |> List.exists (fun l -> l.Contains("213"))
+            Expect.isTrue hasCode "scanned quadrant should show encoded value 213"
+
+        testCase "output has separator lines" <| fun _ ->
+            let state = makeSimpleState ()
+            let lines = galacticRecordLines state
+            let separators = lines |> List.filter (fun l -> l.StartsWith("---"))
+            Expect.equal separators.Length 9 "should have 9 separator lines"
+
+        testCase "total output has correct line count" <| fun _ ->
+            let state = makeSimpleState ()
+            let lines = galacticRecordLines state
+            // header + [for each of 8 rows: data + separator] + initial separator = 1 + 1 + 16 = 18
+            Expect.equal lines.Length 18 "should have 18 lines"
+
+        testCase "data rows use colon-separated format" <| fun _ ->
+            let state = makeSimpleState ()
+            let lines = galacticRecordLines state
+            // Data rows (indices 2, 4, 6, ...) should start with ': ' and end with ' :'
+            let dataLines = lines |> List.filter (fun l -> l.StartsWith(":") && l.EndsWith(":"))
+            Expect.equal dataLines.Length 8 "should have 8 data rows in colon format"
+    ]
+
+[<Tests>]
+let statusReportTests =
+    testList "statusReportLines" [
+        testCase "shows correct klingon count" <| fun _ ->
+            let state = makeSimpleState ()
+            // Total klingons: quadrant[0,0]=2, quadrant[3,3]=1 = 3
+            let lines = statusReportLines state
+            Expect.isTrue (lines |> List.exists (fun l -> l.Contains("KLINGON SHIPS LEFT : 3"))) "should show 3 klingons"
+
+        testCase "shows correct stardates left" <| fun _ ->
+            let state = makeSimpleState ()
+            // Turns=30, Current=2500, Start=2500 -> left = 30 - (2500-2500) = 30
+            let lines = statusReportLines state
+            Expect.isTrue (lines |> List.exists (fun l -> l.Contains("STARDATES LEFT     : 30"))) "should show 30 stardates"
+
+        testCase "shows correct stardates after time passes" <| fun _ ->
+            let state = makeSimpleState ()
+            let state = { state with Stardate = { state.Stardate with Current = 2510 } }
+            // left = 30 - (2510-2500) = 20
+            let lines = statusReportLines state
+            Expect.isTrue (lines |> List.exists (fun l -> l.Contains("STARDATES LEFT     : 20"))) "should show 20 stardates"
+
+        testCase "shows correct starbase count" <| fun _ ->
+            let state = makeSimpleState ()
+            // quadrant[0,0] has 1 starbase
+            let lines = statusReportLines state
+            Expect.isTrue (lines |> List.exists (fun l -> l.Contains("STARBASES LEFT     : 1"))) "should show 1 starbase"
+
+        testCase "header contains STATUS REPORT" <| fun _ ->
+            let state = makeSimpleState ()
+            let lines = statusReportLines state
+            Expect.isTrue (lines.[0].Contains("STATUS REPORT")) "should have status report header"
+    ]
+
+[<Tests>]
+let torpedoDataEdgeCaseTests =
+    testList "torpedoDataLines edge cases" [
+        testCase "no klingons shows sensor report" <| fun _ ->
+            let state = makeSimpleState ()
+            let lines = torpedoDataLines state
+            Expect.isTrue (lines |> List.exists (fun l -> l.Contains("NO ENEMY SHIPS"))) "should report no enemies"
+
+        testCase "single klingon shows distance and course" <| fun _ ->
+            let enterprise = StarTrek.Enterprise.resetEnterprise { X = 4; Y = 4 } { X = 4; Y = 4 }
+            let klingons = [| mkKlingon 4 2 200.0 |]
+            let sectorMap = Array2D.create 8 8 Empty
+            sectorMap.[3, 3] <- Sector.Enterprise
+            sectorMap.[1, 3] <- Klingon 200.0
+            let quadrants = Array2D.init 8 8 (fun x y ->
+                { Quadrant = { X = x + 1; Y = y + 1 }; Klingons = 0; Starbases = 0; Stars = 4 })
+            let state =
+                { Enterprise = enterprise; Klingons = klingons; CurrentQuadrant = sectorMap
+                  Quadrants = quadrants; Stardate = { Current = 2500; Start = 2500; Turns = 30 }
+                  QuadrantsScanned = Set.empty; Random = FixedRandom(0.5) :> IRandomService; InitialKlingons = 1 }
+            let lines = torpedoDataLines state
+            Expect.isTrue (lines.[0].Contains("PHOTON TORPEDO DATA")) "should have torpedo header"
+            Expect.isTrue (lines.[1].Contains("KLINGON AT SECTOR 4,2")) "should show klingon coordinates"
+            Expect.isTrue (lines.[1].Contains("COURSE")) "should include course"
+            Expect.isTrue (lines.[1].Contains("DISTANCE")) "should include distance"
+
+        testCase "multiple klingons get individual data lines" <| fun _ ->
+            let enterprise = StarTrek.Enterprise.resetEnterprise { X = 4; Y = 4 } { X = 4; Y = 4 }
+            let klingons = [| mkKlingon 4 2 200.0; mkKlingon 6 4 200.0 |]
+            let sectorMap = Array2D.create 8 8 Empty
+            sectorMap.[3, 3] <- Sector.Enterprise
+            sectorMap.[1, 3] <- Klingon 200.0
+            sectorMap.[3, 5] <- Klingon 200.0
+            let quadrants = Array2D.init 8 8 (fun x y ->
+                { Quadrant = { X = x + 1; Y = y + 1 }; Klingons = 0; Starbases = 0; Stars = 4 })
+            let state =
+                { Enterprise = enterprise; Klingons = klingons; CurrentQuadrant = sectorMap
+                  Quadrants = quadrants; Stardate = { Current = 2500; Start = 2500; Turns = 30 }
+                  QuadrantsScanned = Set.empty; Random = FixedRandom(0.5) :> IRandomService; InitialKlingons = 2 }
+            let lines = torpedoDataLines state
+            let klingonLines = lines |> List.filter (fun l -> l.Contains("KLINGON AT SECTOR"))
+            Expect.equal klingonLines.Length 2 "should have data for each klingon"
+
+        testCase "due north klingon gives course 3.0" <| fun _ ->
+            let enterprise = StarTrek.Enterprise.resetEnterprise { X = 4; Y = 4 } { X = 4; Y = 4 }
+            let klingons = [| mkKlingon 4 1 200.0 |]
+            let sectorMap = Array2D.create 8 8 Empty
+            sectorMap.[3, 3] <- Sector.Enterprise
+            sectorMap.[0, 3] <- Klingon 200.0
+            let quadrants = Array2D.init 8 8 (fun x y ->
+                { Quadrant = { X = x + 1; Y = y + 1 }; Klingons = 0; Starbases = 0; Stars = 4 })
+            let state =
+                { Enterprise = enterprise; Klingons = klingons; CurrentQuadrant = sectorMap
+                  Quadrants = quadrants; Stardate = { Current = 2500; Start = 2500; Turns = 30 }
+                  QuadrantsScanned = Set.empty; Random = FixedRandom(0.5) :> IRandomService; InitialKlingons = 1 }
+            let lines = torpedoDataLines state
+            // North means dy<0, dx=0. atan2(-3, 0) = -PI/2. Course = 1 - (-PI/2)*4/PI = 1+2 = 3.0
+            Expect.isTrue (lines.[1].Contains("COURSE = 3.0")) "due north should be course 3.0"
+
+        testCase "due east klingon gives course 1.0" <| fun _ ->
+            let enterprise = StarTrek.Enterprise.resetEnterprise { X = 4; Y = 4 } { X = 4; Y = 4 }
+            let klingons = [| mkKlingon 7 4 200.0 |]
+            let sectorMap = Array2D.create 8 8 Empty
+            sectorMap.[3, 3] <- Sector.Enterprise
+            sectorMap.[3, 6] <- Klingon 200.0
+            let quadrants = Array2D.init 8 8 (fun x y ->
+                { Quadrant = { X = x + 1; Y = y + 1 }; Klingons = 0; Starbases = 0; Stars = 4 })
+            let state =
+                { Enterprise = enterprise; Klingons = klingons; CurrentQuadrant = sectorMap
+                  Quadrants = quadrants; Stardate = { Current = 2500; Start = 2500; Turns = 30 }
+                  QuadrantsScanned = Set.empty; Random = FixedRandom(0.5) :> IRandomService; InitialKlingons = 1 }
+            let lines = torpedoDataLines state
+            // East means dy=0, dx>0. atan2(0, 3) = 0. Course = 1 - 0 = 1.0
+            Expect.isTrue (lines.[1].Contains("COURSE = 1.0")) "due east should be course 1.0"
+    ]

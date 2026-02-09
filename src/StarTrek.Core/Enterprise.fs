@@ -116,9 +116,24 @@ let condition (enterprise: Enterprise) : ShipCondition =
     | _ -> Operational
 
 /// §7.3 Klingon Attack: hit = (klingon_shields / distance) × (2 × random)
+/// §8.3 Docking Protection: starbase shields protect the Enterprise when docked
 let klingonAttack (state: GameState) : string list * GameState =
+    let isAdjacentToStarbase =
+        let ep = state.Enterprise.Sector
+        seq {
+            for dy in -1..1 do
+                for dx in -1..1 do
+                    if dx <> 0 || dy <> 0 then
+                        let nx, ny = ep.X + dx, ep.Y + dy
+                        if nx >= 1 && nx <= 8 && ny >= 1 && ny <= 8 then
+                            yield state.CurrentQuadrant.[ny - 1, nx - 1]
+        }
+        |> Seq.exists (fun s -> match s with Starbase -> true | _ -> false)
+
     if state.Klingons.Length = 0 then
         [], state
+    elif isAdjacentToStarbase then
+        ["STAR BASE SHIELDS PROTECT THE ENTERPRISE"], state
     else
         let folder (msgs, enterprise: Enterprise) (klingon: Klingon) =
             let randomFactor = state.Random.NextDouble()
@@ -187,7 +202,7 @@ let firePhasers (blastEnergy: float) (state: GameState) : string list * GameStat
 
 let transferShields (requested: float) (enterprise: Enterprise) : Result<Enterprise, string> =
     let total = enterprise.Energy + enterprise.Shields
-    if requested < 0.0 then
+    if requested <= 0.0 then
         Error "INVALID. SHIELDS UNCHANGED"
     elif requested > total then
         Error "SHIELD CONTROL REPORTS: 'THIS IS NOT THE FEDERATION TREASURY.'\nSHIELDS UNCHANGED"

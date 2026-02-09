@@ -102,6 +102,22 @@ let checkDockingTests =
 [<Tests>]
 let dockingProtectionTests =
     testList "docking protection" [
+        testCase "klingonAttack returns protection message when docked" <| fun _ ->
+            let klingons = [| mkKlingon 6 4 200.0 |]
+            let state = makeState { X = 4; Y = 4 } (Some { X = 4; Y = 5 }) klingons
+            let state = { state with Enterprise = { state.Enterprise with Shields = 500.0 } }
+            let msgs, newState = klingonAttack state
+            Expect.contains msgs "STAR BASE SHIELDS PROTECT THE ENTERPRISE" "should show protection message"
+            Expect.equal newState.Enterprise.Shields 500.0 "shields should be unchanged when docked"
+
+        testCase "klingonAttack deals no damage when docked" <| fun _ ->
+            let klingons = [| mkKlingon 5 4 200.0; mkKlingon 6 6 200.0 |]
+            let state = makeState { X = 4; Y = 4 } (Some { X = 3; Y = 4 }) klingons
+            let state = { state with Enterprise = { state.Enterprise with Shields = 500.0; Energy = 2500.0 } }
+            let _, newState = klingonAttack state
+            Expect.equal newState.Enterprise.Shields 500.0 "shields unchanged with multiple klingons"
+            Expect.equal newState.Enterprise.Energy 2500.0 "energy unchanged when docked"
+
         testCase "klingonAttack still fires when not docked" <| fun _ ->
             let klingons = [| mkKlingon 6 4 200.0 |]
             let state = makeState { X = 4; Y = 4 } None klingons
