@@ -5,6 +5,8 @@ open StarTrek.Enterprise
 
 let galaxySize = 8
 
+let defaultKlingonEnergy = 200.0
+
 let createEmptySectorMap () : Sector[,] =
     Array2D.create galaxySize galaxySize Empty
 
@@ -254,42 +256,44 @@ let checkDocking (state: GameState) : string list * GameState =
     else
         [], state
 
-let enterQuadrant (state: GameState) : GameState =
-    let qx = state.Enterprise.Quadrant.X - 1
-    let qy = state.Enterprise.Quadrant.Y - 1
-    let quadrant = state.Quadrants.[qx, qy]
-    let random = state.Random
-
-    let enterprisePos = state.Enterprise.Sector
+let private placeQuadrantEntities (random: IRandomService) (enterprisePos: Position) (quadrant: Quadrant) =
     let occupied = Set.singleton enterprisePos
-
     let klingonPositions, occupied = placeRandomItems random quadrant.Klingons occupied
     let starbasePositions, occupied = placeRandomItems random quadrant.Starbases occupied
     let starPositions, _ = placeRandomItems random quadrant.Stars occupied
+    klingonPositions, starbasePositions, starPositions
 
-    let klingons =
-        klingonPositions
-        |> List.map (fun pos -> { Sector = pos; Energy = 200.0 })
-        |> List.toArray
+let private buildKlingonShips (positions: Position list) : Klingon array =
+    positions
+    |> List.map (fun pos -> { Sector = pos; Energy = defaultKlingonEnergy })
+    |> List.toArray
 
+let private buildSectorMap (enterprisePos: Position) (klingonPos: Position list) (starbasePos: Position list) (starPos: Position list) : Sector[,] =
     let positionMap =
         [ yield (enterprisePos, Enterprise)
-          for pos in klingonPositions do yield (pos, Klingon 200.0)
-          for pos in starbasePositions do yield (pos, Starbase)
-          for pos in starPositions do yield (pos, Star) ]
+          for pos in klingonPos do yield (pos, Klingon defaultKlingonEnergy)
+          for pos in starbasePos do yield (pos, Starbase)
+          for pos in starPos do yield (pos, Star) ]
         |> Map.ofList
+    Array2D.init galaxySize galaxySize (fun row col ->
+        let pos = { X = col + 1; Y = row + 1 }
+        match Map.tryFind pos positionMap with
+        | Some sector -> sector
+        | None -> Empty)
 
-    let sectorMap =
-        Array2D.init galaxySize galaxySize (fun row col ->
-            let pos = { X = col + 1; Y = row + 1 }
-            match Map.tryFind pos positionMap with
-            | Some sector -> sector
-            | None -> Empty)
+let enterQuadrant (state: GameState) : string list * GameState =
+    let qx = state.Enterprise.Quadrant.X - 1
+    let qy = state.Enterprise.Quadrant.Y - 1
+    let quadrant = state.Quadrants.[qx, qy]
+    let enterprisePos = state.Enterprise.Sector
 
+    let klingonPos, starbasePos, starPos = placeQuadrantEntities state.Random enterprisePos quadrant
+    let klingons = buildKlingonShips klingonPos
+    let sectorMap = buildSectorMap enterprisePos klingonPos starbasePos starPos
     let scanned = Set.add state.Enterprise.Quadrant state.QuadrantsScanned
+
     let newState = { state with CurrentQuadrant = sectorMap; Klingons = klingons; QuadrantsScanned = scanned }
-    let _, dockedState = checkDocking newState
-    dockedState
+    checkDocking newState
 
 let executeWarp (direction: float * float) (warpFactor: float) (state: GameState) : string list * GameState =
     let numSteps = int (warpFactor * 8.0 + 0.5)
@@ -360,9 +364,8 @@ let executeWarp (direction: float * float) (warpFactor: float) (state: GameState
             let repairMsgs, repairedEnterprise = randomDamageEvent newState.Random repairedEnterprise
             let newState = { newState with Enterprise = repairedEnterprise }
 
-            let newState = enterQuadrant newState
-            let dockMsgs, newState = checkDocking newState
-            edgeMsgs @ repairMsgs @ dockMsgs, newState
+            let enterMsgs, newState = enterQuadrant newState
+            edgeMsgs @ repairMsgs @ enterMsgs, newState
         else
             sectorMap.[finalY - 1, finalX - 1] <- Enterprise
             let newEnterprise =
@@ -438,4 +441,5 @@ let rec private tryGenerateGame (random: IRandomService) : GameState =
 let initializeGame (seed: int) : GameState =
     let random = Random(seed) :> IRandomService
     let state = tryGenerateGame random
-    enterQuadrant state
+    let _, state = enterQuadrant state
+    state

@@ -208,6 +208,41 @@ let enterQuadrantTests =
             let state = initializeGame 42
             for k in state.Klingons do
                 Expect.equal k.Energy 200.0 "klingon energy should be 200"
+
+        testCase "returns docking message when adjacent to starbase" <| fun _ ->
+            let state = initializeGame 42
+            // Place Enterprise adjacent to a starbase by setting up a quadrant with a starbase
+            // and positioning Enterprise so it will dock
+            let enterprise = StarTrek.Enterprise.resetEnterprise { X = 4; Y = 4 } { X = 4; Y = 4 }
+            let quadrants = Array2D.init 8 8 (fun x y ->
+                { Quadrant = { X = x + 1; Y = y + 1 }; Klingons = 0; Starbases = 0; Stars = 0 })
+            // Put a starbase in the quadrant
+            quadrants.[3, 3] <- { quadrants.[3, 3] with Starbases = 1; Stars = 1 }
+            let fixedState =
+                { state with
+                    Enterprise = enterprise
+                    Quadrants = quadrants
+                    CurrentQuadrant = Array2D.create 8 8 Empty }
+            let msgs, newState = enterQuadrant fixedState
+            // With 1 starbase placed randomly, it might or might not land adjacent.
+            // Instead, check: if docked, message appears; if not docked, no message.
+            if isDocked newState then
+                Expect.contains msgs "SHIELDS DROPPED FOR DOCKING PURPOSES" "docking message should be returned"
+            else
+                Expect.isEmpty msgs "no docking message when not adjacent"
+
+        testCase "returns no messages when not near starbase" <| fun _ ->
+            let state = initializeGame 42
+            let enterprise = StarTrek.Enterprise.resetEnterprise { X = 4; Y = 4 } { X = 4; Y = 4 }
+            let quadrants = Array2D.init 8 8 (fun x y ->
+                { Quadrant = { X = x + 1; Y = y + 1 }; Klingons = 0; Starbases = 0; Stars = 1 })
+            let fixedState =
+                { state with
+                    Enterprise = enterprise
+                    Quadrants = quadrants
+                    CurrentQuadrant = Array2D.create 8 8 Empty }
+            let msgs, _ = enterQuadrant fixedState
+            Expect.isEmpty msgs "no messages when no starbase in quadrant"
     ]
 
 [<Tests>]

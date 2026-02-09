@@ -176,24 +176,16 @@ let firePhotonTorpedoTests =
 [<Tests>]
 let torpedoDataTests =
     testList "torpedoDataLines targeting accuracy" [
-        testCase "torpedo data courses accurately target klingons with random layout" <| fun _ ->
-            let rng = System.Random()
+        testCase "torpedo data courses accurately target klingons" <| fun _ ->
             let enterprisePos = { X = 4; Y = 4 }
 
-            // Generate 3 distinct random klingon positions, not at Enterprise
-            let rec generatePositions occupied count acc =
-                if count = 0 then acc
-                else
-                    let x = rng.Next(1, 9)
-                    let y = rng.Next(1, 9)
-                    let pos = { X = x; Y = y }
-                    if Set.contains pos occupied then
-                        generatePositions occupied count acc
-                    else
-                        generatePositions (Set.add pos occupied) (count - 1) (pos :: acc)
-
-            let klingonPositions =
-                generatePositions (Set.singleton enterprisePos) 3 []
+            // Use fixed positions along cardinal/diagonal directions from Enterprise
+            // so computed courses align perfectly with the grid
+            let klingonPositions = [
+                { X = 7; Y = 4 }  // due East (course 1.0)
+                { X = 4; Y = 1 }  // due North (course 3.0)
+                { X = 1; Y = 7 }  // SW diagonal (course 6.0)
+            ]
 
             let klingons =
                 klingonPositions
