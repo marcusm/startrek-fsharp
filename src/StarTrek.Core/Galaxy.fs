@@ -370,9 +370,12 @@ let executeWarp (direction: float * float) (warpFactor: float) (state: GameState
         let startY = float ep.Y - 0.5
 
         let deductAndAdvance newEnterprise =
+            let newStardate =
+                if warpFactor >= 1.0 then state.Stardate.Current + 1
+                else state.Stardate.Current
             { state with
                 Enterprise = { newEnterprise with Energy = state.Enterprise.Energy - energyCost }
-                Stardate = { state.Stardate with Current = state.Stardate.Current + 1 } }
+                Stardate = { state.Stardate with Current = newStardate } }
 
         match walkSectors sectorMap direction numSteps startX startY ep with
         | ExitedQuadrant lastPos ->
@@ -437,7 +440,7 @@ let rec private tryGenerateGame (random: IRandomService) : GameState =
         let enterprise = placeEnterprise random
 
         let startDate = int (floor (random.NextDouble() * 20.0 + 20.0)) * 100
-        let turns = int (random.NextDouble() * 20.0 + 20.0)
+        let turns = 30
 
         { Enterprise = enterprise
           Klingons = [||]

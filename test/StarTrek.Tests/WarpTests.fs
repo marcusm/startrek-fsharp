@@ -99,11 +99,17 @@ let executeWarpTests =
             Expect.equal newState.Enterprise.Energy lowEnergy.Enterprise.Energy "energy unchanged"
             Expect.isNonEmpty msgs "should have error message"
 
-        testCase "stardate advances by 1 after successful warp" <| fun _ ->
+        testCase "stardate advances by 1 for warp >= 1" <| fun _ ->
             let state = makeStateWithEnterpriseAt 4 4 |> clearSectorMap
             let direction = getCourseVector 1.0 |> Option.get
-            let _, newState = executeWarp direction 0.125 state
+            let _, newState = executeWarp direction 1.0 state
             Expect.equal newState.Stardate.Current (state.Stardate.Current + 1) "stardate +1"
+
+        testCase "sub-warp does not advance stardate" <| fun _ ->
+            let state = makeStateWithEnterpriseAt 4 4 |> clearSectorMap
+            let direction = getCourseVector 1.0 |> Option.get
+            let _, newState = executeWarp direction 0.5 state
+            Expect.equal newState.Stardate.Current state.Stardate.Current "stardate unchanged for sub-warp"
 
         testCase "crossing quadrant boundary changes quadrant" <| fun _ ->
             let state = makeStateWithEnterpriseAt 8 4 |> clearSectorMap
