@@ -90,10 +90,12 @@ let getPhaserRepairTime (enterprise: Enterprise) : int =
     |> Option.map (fun d -> abs d.Amount)
     |> Option.defaultValue 0
 
-let calculatePhaserDamage (from: Position) (target: Position) (blastEnergy: float) : float =
-    let dx = target.X - from.X
-    let dy = target.Y - from.Y
-    blastEnergy * 30.0 / (30.0 + float (dx * dx + dy * dy) + 1.0)
+/// §7.1/§7.2/§7.3 Spec hit formula: (baseEnergy / distance) × (2 × randomFactor)
+let calculateHitDamage (from: Position) (target: Position) (baseEnergy: float) (randomFactor: float) : float =
+    let dx = float (target.X - from.X)
+    let dy = float (target.Y - from.Y)
+    let distance = sqrt (dx * dx + dy * dy) |> max 1.0
+    (baseEnergy / distance) * (2.0 * randomFactor)
 
 let condition (enterprise: Enterprise) : ShipCondition =
     match enterprise.Shields, enterprise.Energy with
@@ -101,13 +103,14 @@ let condition (enterprise: Enterprise) : ShipCondition =
     | (s, e) when s > 0.0 && s < 1.1 && e = 0.0 -> DeadInSpace
     | _ -> Operational
 
+/// §7.3 Klingon Attack: hit = (klingon_shields / distance) × (2 × random)
 let klingonAttack (state: GameState) : string list * GameState =
     if state.Klingons.Length = 0 then
         [], state
     else
         let folder (msgs, enterprise: Enterprise) (klingon: Klingon) =
-            let blastEnergy = klingon.Energy * 2.0
-            let damage = calculatePhaserDamage enterprise.Sector klingon.Sector blastEnergy
+            let randomFactor = state.Random.NextDouble()
+            let damage = calculateHitDamage klingon.Sector enterprise.Sector klingon.Energy randomFactor
             let newShields = enterprise.Shields - damage
             let newEnterprise = { enterprise with Shields = newShields }
             let hitMsg = sprintf "%3.1f UNIT HIT ON ENTERPRISE FROM SECTOR %d,%d   (%3.1f LEFT)" damage klingon.Sector.X klingon.Sector.Y newShields
@@ -133,10 +136,11 @@ let firePhasers (blastEnergy: float) (state: GameState) : string list * GameStat
     let computerDamaged = isComputerDamaged enterprise
 
     let folder (msgs, klingons, sectorMap, quadrants: Quadrant[,]) (klingon: Klingon) =
-        let baseDamage = calculatePhaserDamage enterprise.Sector klingon.Sector perKlingon
-        let damage =
-            if computerDamaged then baseDamage * state.Random.NextDouble()
-            else baseDamage
+        let effectiveEnergy =
+            if computerDamaged then perKlingon * state.Random.NextDouble()
+            else perKlingon
+        let randomFactor = state.Random.NextDouble()
+        let damage = calculateHitDamage enterprise.Sector klingon.Sector effectiveEnergy randomFactor
 
         let newEnergy = klingon.Energy - damage
         let hitMsg = sprintf "%.0f UNIT HIT ON KLINGON AT SECTOR %d,%d" damage klingon.Sector.X klingon.Sector.Y
